@@ -40,7 +40,7 @@ class TestWebUIBuildNeeded:
 
     def test_returns_false_when_vite_manifest_fresh(self, tmp_path):
         web_dir, dist_dir = _make_web_dir(tmp_path)
-        _touch(web_dir / "src" / "App.tsx", offset=-10)
+        _touch(web_dir / "src" / "App.vue", offset=-10)
         _touch(dist_dir / ".vite" / "manifest.json")
         assert _web_ui_build_needed(web_dir) is False
 
@@ -59,7 +59,7 @@ class TestWebUIBuildNeeded:
     def test_web_dist_dir_not_web_dist_subdir(self, tmp_path):
         """Regression: sentinel must be in hermes_cli/web_dist/, NOT web/dist/."""
         web_dir, dist_dir = _make_web_dir(tmp_path)
-        _touch(web_dir / "src" / "App.tsx", offset=-10)
+        _touch(web_dir / "src" / "App.vue", offset=-10)
         # Place manifest in wrong location (web/dist/) — should NOT count as fresh
         wrong_dist = web_dir / "dist" / ".vite" / "manifest.json"
         _touch(wrong_dist)

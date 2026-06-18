@@ -10,7 +10,7 @@ Lenlion Agent 是一个 **可插拔、多入口、多平台** 的 AI Agent 运�
 
 | 原则 | 说明 |
 |------|------|
-| **单一 Agent 核心** | 所有交互模式（CLI、Gateway、TUI、Cron）最终都调用 `AIAgent.run_conversation()` |
+| **单一 Agent 核心** | 所有交互模式（CLI、Web Chat、Gateway、Cron）最终都调用 `AIAgent.run_conversation()` |
 | **注册表驱动** | 工具（Tools）、插件（Plugins）、模型提供方（Providers）通过注册/发现机制扩展，而非硬编码 |
 | **分层解耦** | CLI 编排、对话循环、工具执行、平台适配、持久化各自独立模块 |
 | **配置集中** | `~/.hermes/config.yaml` + `.env` 统一管理；Profile 支持多实例隔离 |
@@ -21,8 +21,9 @@ Lenlion Agent 是一个 **可插拔、多入口、多平台** 的 AI Agent 运�
 ```mermaid
 flowchart TB
   subgraph presentation [表现层]
-    CLI[lenlion CLI<br/>hermes_cli/ + cli.py]
-    TUI[Ink TUI<br/>ui-tui/ + tui_gateway/]
+    CLI[lenlion CLI<br/>cli.py REPL]
+    WEB[Vue Web Chat<br/>web/]
+    DASH[FastAPI Dashboard<br/>hermes_cli/web_server.py]
     GW[消息网关<br/>gateway/]
     CRON[定时任务<br/>cron/]
   end
@@ -33,19 +34,24 @@ flowchart TB
     PLUG[hermes_cli/plugins.py]
   end
 
+  subgraph chat_gateway [Web 聊天网关]
+    WS["/api/ws"]
+    TG[tui_gateway/<br/>JSON-RPC 引擎]
+  end
+
   subgraph agent_core [Agent 核心]
     RA[run_agent.py<br/>AIAgent]
     LOOP[agent/conversation_loop.py]
-    CTX[agent/context_engine.py<br/>压缩 / 上下文]
-    TRANS[agent/transports/*<br/>LLM 传输层]
+    CTX[agent/context_engine.py]
+    TRANS[agent/transports/*]
   end
 
   subgraph capabilities [能力层]
     MT[model_tools.py]
     REG[tools/registry.py]
     TS[toolsets.py]
-    SK[skills/ + tools/skills_tool.py]
-    PR[providers/ + plugins/model-providers/]
+    SK[skills/]
+    PR[plugins/model-providers/]
   end
 
   subgraph persistence [持久化]
@@ -54,10 +60,14 @@ flowchart TB
   end
 
   CLI --> MAIN
-  TUI --> RA
+  WEB --> DASH
+  DASH --> WS
+  WS --> TG
+  TG --> RA
   GW --> RA
   CRON --> RA
   MAIN --> CLI
+  MAIN --> DASH
   MAIN --> GW
   MAIN --> CFG
   RA --> LOOP
@@ -71,6 +81,7 @@ flowchart TB
   LOOP --> STATE
   MAIN --> HOME
   GW --> HOME
+  TG --> STATE
 ```
 
 ---
@@ -90,12 +101,12 @@ lenlion-project/
     ├── toolsets.py          # 工具集定义与组合
     ├── hermes_constants.py  # 全局常量（CLI 名、HERMES_HOME 等）
     ├── hermes_state.py      # SQLite 会话持久化
-    ├── hermes_cli/          # CLI 子命令、配置、Setup、Gateway 封装
+    ├── hermes_cli/          # CLI 子命令、FastAPI Dashboard、web_dist/
     ├── agent/               # 对话循环、上下文、Transport、Memory 等
     ├── tools/               # 各工具实现（registry.register）
     ├── gateway/             # 多平台消息网关
-    ├── tui_gateway/         # TUI Python JSON-RPC 后端
-    ├── ui-tui/              # Ink/React TUI 前端（TypeScript）
+    ├── web/                 # Vue 3 聊天前端（Vite 源码）
+    ├── tui_gateway/         # WebSocket JSON-RPC 聊天后端引擎（非终端 UI）
     ├── cron/                # 定时任务存储与调度
     ├── plugins/             # 内置插件（Provider、Memory、Platform 等）
     ├── providers/           # ProviderProfile 抽象与注册
@@ -105,7 +116,9 @@ lenlion-project/
     └── tests/               # Pytest 测试
 ```
 
-**未迁移模块**（见 `lenlion_agent/MIGRATION.md`）：`website/`、`web/` Dashboard SPA、`apps/desktop/`、`docker/`、`acp_adapter/` 等。
+**相对上游 Hermes 已移除**：Ink TUI（`ui-tui/`）、PTY 嵌入层（`/api/pty`）、`lenlion --tui`。
+
+**未迁移模块**（见 `lenlion_agent/MIGRATION.md`）：文档站、Electron 桌面端、上游全功能 React Dashboard、Docker/Nix 打包、`acp_adapter/` 等。
 
 ---
 
@@ -115,19 +128,20 @@ lenlion-project/
 
 | 命令 | 模块 | 用途 |
 |------|------|------|
-| `lenlion` | `hermes_cli.main:main` | 主 CLI：chat、gateway、cron、setup、doctor 等 |
+| `lenlion` | `hermes_cli.main:main` | 主 CLI：chat、dashboard、gateway、cron、setup、doctor 等 |
 | `lenlion-agent` | `run_agent:main` | 独立 Agent 运行器（库 API + Fire CLI） |
 
 ### 3.2 CLI 路由（`hermes_cli/main.py`）
 
 1. **Bootstrap**：`hermes_bootstrap`（Windows UTF-8）、进程标题、更新中断恢复
 2. **Argparse**：`hermes_cli/_parser.py` 构建顶层解析器（`prog=lenlion`）
-3. **默认行为**：无子命令 → `cmd_chat` → 交互式对话
+3. **默认行为**：无子命令 → `cmd_chat` → 经典 prompt_toolkit REPL
 4. **主要子命令**（部分）：
 
 | 子命令 | 职责 |
 |--------|------|
-| `chat`（默认） | 经典 REPL 或 `--tui` 启动 TUI |
+| `chat`（默认） | 经典 REPL 交互对话 |
+| `dashboard` | 启动 FastAPI Web 服务 + Vue 聊天界面 |
 | `gateway` | 启动/管理消息网关进程 |
 | `cron` | 定时任务 CRUD |
 | `setup` / `model` / `auth` | 配置向导与模型/凭证管理 |
@@ -142,7 +156,9 @@ sequenceDiagram
   participant User
   participant CLI as lenlion CLI
   participant REPL as cli.py REPL
-  participant TUI as ui-tui + tui_gateway
+  participant Dash as web_server.py
+  participant TG as tui_gateway
+  participant Browser as Vue SPA
   participant GW as gateway/run.py
   participant Agent as AIAgent
   participant LLM as LLM Provider
@@ -152,11 +168,17 @@ sequenceDiagram
     CLI->>REPL: cmd_chat
     REPL->>Agent: run_conversation
     Agent->>LLM: transport 调用
-  else TUI
-    User->>CLI: lenlion --tui
-    CLI->>TUI: 启动 Node + tui_gateway
-    TUI->>Agent: JSON-RPC
+  else Web Chat
+    User->>CLI: lenlion dashboard
+    CLI->>Dash: start_server :9119
+    User->>Browser: 打开浏览器
+    Browser->>Dash: GET / (web_dist)
+    Browser->>Dash: WS /api/ws
+    Dash->>TG: handle_ws
+    Browser->>TG: session.create / prompt.submit
+    TG->>Agent: run_conversation
     Agent->>LLM: transport 调用
+    TG-->>Browser: event 帧（message.* / tool.* / approval.*）
   else Gateway
     User->>CLI: lenlion gateway run
     CLI->>GW: start_gateway
@@ -188,7 +210,7 @@ sequenceDiagram
 
 ```
 用户消息
-  → 构建 TurnContext（模型、工具集、会话状态）
+  → build_turn_context（TurnContext、压缩预检、pre_llm_call 钩子）
   → LLM 调用（经 Transport + Provider Profile）
   → 若返回 tool_calls → tool_executor 执行 → 结果回填 messages
   → 循环直至模型给出最终文本或无 tool_calls
@@ -209,6 +231,7 @@ sequenceDiagram
 | `agent/memory_manager.py` | Memory 插件上下文注入 |
 | `agent/error_classifier.py` | API 错误分类与 failover |
 | `agent/turn_retry_state.py` | 单轮重试状态机 |
+| `agent/turn_context.py` | 单轮 setup（插件钩子、memory prefetch 等） |
 
 ### 4.3 LLM Provider 架构
 
@@ -247,7 +270,7 @@ tools/*.py           各工具实现（terminal、file、browser、web_search…
 每个工具文件在模块顶层调用 `registry.register()`，声明：
 
 - OpenAI 格式 `schema`（name、description、parameters）
-- `handler`（同步或 async  Callable）
+- `handler`（同步或 async Callable）
 - 所属 `toolsets`
 - 可选 `check_fn`（环境/配置不满足时隐藏工具）
 
@@ -312,16 +335,106 @@ Gateway 与 CLI 通过 `enabled_toolsets` / `disabled_toolsets` 配置差异化�
 
 ---
 
-## 7. 插件系统（Plugins）
+## 7. Web Chat 架构
 
-### 7.1 发现顺序
+Lenlion 的浏览器聊天界面由 **Vue 前端 + FastAPI 静态服务 + tui_gateway JSON-RPC 引擎** 三部分组成。`tui_gateway` 名称来自上游 Hermes TUI 时代，在本 fork 中 **仅作为 Web 聊天后端**，不再驱动终端 UI。
+
+### 7.1 组件职责
+
+| 组件 | 路径 | 职责 |
+|------|------|------|
+| **Vue SPA** | `web/` | 聊天 UI：消息列表、输入框、推理/工具状态、审批/澄清/密钥对话框 |
+| **静态产物** | `hermes_cli/web_dist/` | `npm run build` 输出，打包进 wheel |
+| **Dashboard 服务** | `hermes_cli/web_server.py` | FastAPI：serve SPA、`/api/ws`、REST 管理 API、OAuth 门控 |
+| **聊天网关** | `tui_gateway/` | JSON-RPC 会话管理、Agent 构建、事件推送 |
+
+### 7.2 启动与构建
+
+```
+lenlion dashboard
+  → cmd_dashboard (main.py)
+  → 可选 _build_web_ui(web/) — dist 过期时自动 npm build
+  → start_background_mcp_discovery() — Dashboard 进程内启动 MCP 发现
+  → web_server.start_server(host, port) — 默认 127.0.0.1:9119
+```
+
+Vite 配置（`web/vite.config.ts`）：
+
+- `base: './'` — 支持子路径反向代理
+- `outDir: '../hermes_cli/web_dist'` — 构建产物直接进入 Python 包
+- 开发模式 `proxy /api → :9119` — 前后端联调
+
+### 7.3 通信协议
+
+**WebSocket `/api/ws`** — 与上游 stdio TUI 相同的 **换行分隔 JSON-RPC 2.0**：
+
+```
+Browser                          tui_gateway/server.py
+   │                                      │
+   │──── connect ────────────────────────►│
+   │◄─── gateway.ready (event) ───────────│
+   │──── session.create ─────────────────►│
+   │◄─── result { session_id } ───────────│
+   │──── prompt.submit { text } ─────────►│
+   │◄─── event message.delta / tool.* ────│
+   │◄─── event approval.request ──────────│  (需用户响应)
+   │──── approval.respond ───────────────►│
+```
+
+前端封装（`web/src/lib/gatewayClient.ts`）：
+
+- 连接时携带 `?token=`（loopback 模式）或 OAuth 模式下的 `?ticket=`
+- 请求/响应通过 `id` 关联；服务端推送以 `method: "event"` 帧分发
+- Pinia store（`web/src/stores/chat.ts`）订阅事件并驱动 UI 状态
+
+主要 RPC 方法（`tui_gateway/server.py`）：
+
+| 方法 | 用途 |
+|------|------|
+| `session.create` | 创建或恢复聊天会话 |
+| `prompt.submit` | 提交用户消息，触发 Agent 回合 |
+| `session.interrupt` | 中断进行中的生成 |
+| `approval.respond` / `clarify.respond` / `secret.respond` | 交互式对话框响应 |
+
+### 7.4 Agent 实例化
+
+Dashboard 路径下 Agent 由 `tui_gateway.server._make_agent()` 构建，而非 REPL 的 `cli.py` 路径：
+
+- 快照当前工具注册表（含 MCP 工具，需 dashboard 启动时后台 MCP 发现）
+- 会话级 model / toolsets 覆盖
+- 事件通过 `tui_gateway/event_publisher.py` 推送到 WebSocket 客户端
+
+### 7.5 鉴权与安全
+
+| 模式 | 机制 |
+|------|------|
+| **Loopback 默认** | 绑定 `127.0.0.1`；SPA 注入 `_SESSION_TOKEN`；WS 连接带 `?token=` |
+| **OAuth 门控** | `dashboard_auth/` 中间件；公开路径白名单；WS 需先 REST 换取 ticket |
+| **CORS** | 仅允许 `localhost` / `127.0.0.1` 来源 |
+
+`web_server.py` 仍保留上游大量 REST 端点（配置、会话列表、指标等），当前 Vue SPA **仅实现 chat-only 界面**；扩展管理页可复用现有 `/api/*` 而无需改动 Agent 核心。
+
+### 7.6 与已移除 TUI 的关系
+
+| 已移除 | 替代 |
+|--------|------|
+| `ui-tui/` Ink/React 终端 UI | `web/` Vue SPA |
+| `/api/pty` PTY 嵌入 xterm.js | 结构化 `/api/ws` JSON-RPC |
+| `lenlion --tui` | `lenlion dashboard` |
+| `hermes_cli/tui_dist/` | `hermes_cli/web_dist/` |
+
+---
+
+## 8. 插件系统（Plugins）
+
+### 8.1 发现顺序
 
 1. 仓库内置 `plugins/<name>/`
 2. 用户目录 `~/.hermes/plugins/<name>/`
 3. 项目本地 `./.hermes/plugins/`（需 `HERMES_ENABLE_PROJECT_PLUGINS`）
 4. Pip entry point 组 `hermes_agent.plugins`
 
-### 7.2 插件契约
+### 8.2 插件契约
 
 每个插件目录包含：
 
@@ -334,7 +447,7 @@ Gateway 与 CLI 通过 `enabled_toolsets` / `disabled_toolsets` 配置差异化�
 - `register_hook()` → 挂载生命周期钩子
 - `register_cli_command()` → 动态 CLI 子命令
 
-### 7.3 内置插件分类
+### 8.3 内置插件分类
 
 | 类别 | 示例路径 |
 |------|----------|
@@ -347,20 +460,20 @@ Gateway 与 CLI 通过 `enabled_toolsets` / `disabled_toolsets` 配置差异化�
 
 ---
 
-## 8. 技能系统（Skills）
+## 9. 技能系统（Skills）
 
-### 8.1 技能是什么
+### 9.1 技能是什么
 
 技能是 **带 YAML frontmatter 的 Markdown 文档**（`SKILL.md`），描述特定任务的工作流、约束与示例。Agent 通过工具渐进式加载，而非一次性塞进 system prompt。
 
-### 8.2 发现路径（优先级从高到低）
+### 9.2 发现路径（优先级从高到低）
 
 1. 仓库内置 `skills/`
 2. `~/.hermes/skills/`
 3. `~/.hermes/optional-skills/`
 4. Profile / 项目本地路径（见 `agent/skill_utils.py`）
 
-### 8.3 使用方式
+### 9.3 使用方式
 
 | 方式 | 机制 |
 |------|------|
@@ -370,13 +483,13 @@ Gateway 与 CLI 通过 `enabled_toolsets` / `disabled_toolsets` 配置差异化�
 | Cron 任务 | `jobs.json` 中指定 `skills` 列表 |
 | Skill Bundle | `~/.hermes/skill-bundles/*.yaml` |
 
-Frontmatter 中 `metadata.hermes` 为结构化扩展字段（tags、config 声明、blueprint 等），与 CLI 命令名 `lenlion` 无关。
+Frontmatter 中 `metadata.hermes` 为结构化扩展字段（tags、config 声明、blueprint 等）。
 
 ---
 
-## 9. 配置与持久化
+## 10. 配置与持久化
 
-### 9.1 用户数据目录（`~/.hermes/`）
+### 10.1 用户数据目录（`~/.hermes/`）
 
 | 路径 | 用途 |
 |------|------|
@@ -387,26 +500,26 @@ Frontmatter 中 `metadata.hermes` 为结构化扩展字段（tags、config 声�
 | `skills/`、`plugins/` | 用户扩展 |
 | `cron/jobs.json` | 定时任务定义 |
 | `profiles/<name>/` | 多 Profile 隔离实例 |
-| `logs/` | `agent.log`、`gateway.log` 等 |
+| `logs/` | `agent.log`、`gateway.log`、`tui_gateway_crash.log` 等 |
 
 目录解析：`hermes_constants.get_hermes_home()`，可通过 `HERMES_HOME` 覆盖。
 
-### 9.2 配置加载
+### 10.2 配置加载
 
 - **`hermes_cli/config.py`**：`DEFAULT_CONFIG` + 用户 YAML 深度合并
 - **Profile**：`lenlion -p <name>` 在 argparse 之前改写 `HERMES_HOME`
 - **Safe Mode**：`lenlion --safe-mode` 跳过用户 config、rules、plugins
 
-### 9.3 会话持久化（`hermes_state.py`）
+### 10.3 会话持久化（`hermes_state.py`）
 
 - 替代早期 per-session JSONL 文件
-- 支持 CLI / Gateway / TUI 等不同 `source` 标签
+- 支持 CLI / Web / Gateway 等不同 `source` 标签
 - 压缩后通过 `parent_session_id` 建立会话 lineage
 - Batch / RL 轨迹走独立系统，不入 `state.db`
 
 ---
 
-## 10. 定时任务（Cron）
+## 11. 定时任务（Cron）
 
 | 组件 | 文件 | 说明 |
 |------|------|------|
@@ -419,31 +532,51 @@ Cron 触发的 Agent 子进程通常禁用 `cronjob`、`messaging`、`clarify` �
 
 ---
 
-## 11. TUI 终端界面
+## 12. 部署与打包
+
+Lenlion 采用 **本地优先** 部署，无仓库内置的 Docker/K8s 编排。
+
+### 12.1 分发渠道
+
+| 渠道 | 说明 |
+|------|------|
+| **PyPI** | 包名 `lenlion-agent`；CalVer tag 触发 `.github/workflows/upload_to_pypi.yml` |
+| **Editable 安装** | `pip install -e ".[cli,web,mcp,cron]"` |
+| **install.sh** | `scripts/install.sh` — git clone + venv 一键安装（偏上游 Hermes 风格） |
+
+### 12.2 Web UI 打包
 
 ```
-ui-tui/ (TypeScript, Ink/React)
-    │  JSON-RPC over stdio
-    ▼
-tui_gateway/ (Python)
-    │  复用 AIAgent + cli 等价会话逻辑
-    ▼
-run_agent.py
+web/  ──npm run build──►  hermes_cli/web_dist/  ──wheel package-data──►  PyPI
 ```
 
-- 启动：`lenlion --tui` 或 config 中 `display.interface: tui`
-- 后端：`tui_gateway/server.py` 处理 session、消息、工具事件流
-- 前端构建产物打包在 `hermes_cli/tui_dist/`（wheel package-data）
+`lenlion dashboard` 从已安装包的 `web_dist/` serve 静态文件，无需单独部署前端 CDN。
 
----
+### 12.3 运行时拓扑
 
-## 12. 依赖与打包策略
+```
+┌─────────────────────────────────────────┐
+│  lenlion dashboard (单进程)              │
+│  ┌─────────────┐  ┌──────────────────┐  │
+│  │ uvicorn     │  │ tui_gateway      │  │
+│  │ FastAPI     │──│ (in-process WS)  │  │
+│  │ + web_dist  │  └────────┬─────────┘  │
+│  └─────────────┘           │            │
+└────────────────────────────┼────────────┘
+                             ▼
+                        AIAgent → LLM API
+
+lenlion gateway run  ──►  独立长期运行进程  ──►  AIAgent → 平台 API
+```
+
+对外暴露 Dashboard 时：反向代理 + TLS + OAuth 门控；**不建议** `--insecure` 裸绑 `0.0.0.0` 到公网。
+
+### 12.4 依赖策略
 
 - **包管理**：`uv` + `pyproject.toml` + 精确 pin 的 `uv.lock`
 - **核心依赖**：`openai`、`httpx`、`pydantic`、`prompt_toolkit`、`croniter`、`fastapi` 等
 - **可选 extras**：`messaging`、`matrix`、`mcp`、`web`、`google`、`voice` 等
 - **Lazy install**：搜索、TTS、部分 Provider 通过 `tools/lazy_deps.py` 首次使用时安装
-- **`[all]` extra**：仅包含无法 lazy-install 的包（见 `pyproject.toml` 注释策略）
 
 Python 版本要求：`>=3.11,<3.14`
 
@@ -460,6 +593,7 @@ Python 版本要求：`>=3.11,<3.14`
 | 新 Memory 后端 | `plugins/memory/<backend>/` | config 中选择 backend |
 | 新消息平台 | `gateway/platforms/` 或 `plugins/platforms/` | `ADDING_A_PLATFORM.md` |
 | 新技能 | 目录 + `SKILL.md` 放入 `~/.hermes/skills/` | `tools/skills_tool.py` |
+| Web 聊天 UI | 扩展 `web/src/components/` | `web/src/lib/gatewayClient.ts` |
 | MCP 服务 | config + `optional-mcps/` 清单 | `hermes_cli/mcp_catalog.py` |
 | 项目规则 | 工作区 `AGENTS.md`、`SOUL.md` | 自动注入 system prompt |
 | 钩子 | Plugin `register_hook` | `VALID_HOOKS` in `plugins.py` |
@@ -470,7 +604,7 @@ Python 版本要求：`>=3.11,<3.14`
 
 ## 14. Lenlion 定制说明
 
-相对上游 Hermes Agent，本 fork 的架构层差异较小，主要是 **产品化与仓库组织**：
+相对上游 Hermes Agent，本 fork 在架构层保持 Agent / Gateway / Tools / Plugins 核心不变，主要差异在 **交互入口与仓库组织**：
 
 | 项 | 说明 |
 |----|------|
@@ -478,10 +612,12 @@ Python 版本要求：`>=3.11,<3.14`
 | PyPI 包名 | `lenlion-agent` |
 | 代码位置 | Monorepo 下 `lenlion_agent/` 子目录 |
 | 配置兼容 | 仍使用 `~/.hermes/`，无需迁移用户数据 |
-| 未迁移模块 | 文档站、Desktop App、Dashboard Web、Docker/Nix 打包等 |
+| Web 界面 | Vue 3 chat-only SPA，替代 Ink TUI + PTY 嵌入 |
+| 聊天后端 | 保留 `tui_gateway` JSON-RPC，经 `/api/ws` 暴露 |
+| 已移除 | TUI、`/api/pty`、Docker/Nix 打包、Desktop App、文档站 |
 | CI | 根目录 `.github/`，`working-directory: lenlion_agent` |
 
-架构本身（Agent 核心、Gateway、Tools、Plugins、Skills）与上游 Hermes 保持一致，便于后续 rsync 增量同步核心目录。
+核心目录（`agent/`、`gateway/`、`tools/`、`plugins/`）可与上游 rsync 增量同步。
 
 ---
 
@@ -492,6 +628,13 @@ Python 版本要求：`>=3.11,<3.14`
 | CLI 路由 | `lenlion_agent/hermes_cli/main.py` |
 | CLI 解析器 | `lenlion_agent/hermes_cli/_parser.py` |
 | 交互 REPL | `lenlion_agent/cli.py` |
+| Dashboard 服务 | `lenlion_agent/hermes_cli/web_server.py` |
+| Dashboard 启动 | `cmd_dashboard` in `main.py` |
+| Vue 入口 | `lenlion_agent/web/src/App.vue` |
+| WS 客户端 | `lenlion_agent/web/src/lib/gatewayClient.ts` |
+| 聊天状态 | `lenlion_agent/web/src/stores/chat.ts` |
+| WS 服务端 | `lenlion_agent/tui_gateway/ws.py` |
+| JSON-RPC 引擎 | `lenlion_agent/tui_gateway/server.py` |
 | Agent 门面 | `lenlion_agent/run_agent.py` |
 | 对话循环 | `lenlion_agent/agent/conversation_loop.py` |
 | 工具 API | `lenlion_agent/model_tools.py` |
@@ -504,7 +647,7 @@ Python 版本要求：`>=3.11,<3.14`
 | 常量 / HOME | `lenlion_agent/hermes_constants.py` |
 | 会话 DB | `lenlion_agent/hermes_state.py` |
 | Cron 调度 | `lenlion_agent/cron/scheduler.py` |
-| TUI 后端 | `lenlion_agent/tui_gateway/server.py` |
+| 前端构建 | `lenlion_agent/web/vite.config.ts` |
 | 打包 | `lenlion_agent/pyproject.toml` |
 | 迁移范围 | `lenlion_agent/MIGRATION.md` |
 
@@ -512,8 +655,9 @@ Python 版本要求：`>=3.11,<3.14`
 
 ## 16. 进一步阅读
 
-- [lenlion_agent/README.md](./lenlion_agent/README.md) — 快速开始
+- [README.md](./README.md) — Monorepo 快速开始
+- [lenlion_agent/README.md](./lenlion_agent/README.md) — 安装与使用
 - [lenlion_agent/MIGRATION.md](./lenlion_agent/MIGRATION.md) — 迁移与定制记录
-- [lenlion_agent/AGENTS.md](./lenlion_agent/AGENTS.md) — 开发者贡献指南（上游风格）
+- [lenlion_agent/AGENTS.md](./lenlion_agent/AGENTS.md) — 开发者贡献指南
 - [lenlion_agent/gateway/platforms/ADDING_A_PLATFORM.md](./lenlion_agent/gateway/platforms/ADDING_A_PLATFORM.md) — 新增消息平台
 - [lenlion_agent/README.hermes-upstream.md](./lenlion_agent/README.hermes-upstream.md) — 上游完整功能文档

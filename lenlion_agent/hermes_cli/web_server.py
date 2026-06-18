@@ -104,18 +104,6 @@ except ImportError:
 WEB_DIST = Path(os.environ["HERMES_WEB_DIST"]) if "HERMES_WEB_DIST" in os.environ else Path(__file__).parent / "web_dist"
 _log = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# Per-channel subscriber registry used by /api/pub (PTY-side gateway → dashboard)
-# and /api/events (dashboard → browser sidebar).  Keyed by an opaque channel id
-# the chat tab generates on mount; entries auto-evict when the last subscriber
-# drops AND the publisher has disconnected.
-#
-# State lives on app.state (not module-level globals) so that asyncio.Lock is
-# created on the running event loop during lifespan startup.  A module-level
-# asyncio.Lock() binds to whatever loop was active at import time, which breaks
-# when the same module is used across TestClient instances or uvicorn reloads.
-# ---------------------------------------------------------------------------
-
 def _start_desktop_cron_ticker(stop_event: "threading.Event", interval: int = 60) -> None:
     """Tick the cron scheduler from inside the desktop dashboard backend.
 
@@ -142,9 +130,6 @@ def _start_desktop_cron_ticker(stop_event: "threading.Event", interval: int = 60
 
 @asynccontextmanager
 async def _lifespan(app: "FastAPI"):
-    app.state.event_channels = {}  # dict[str, set]
-    app.state.event_lock = asyncio.Lock()
-
     # Desktop-spawned backends (HERMES_DESKTOP=1) fire cron jobs themselves,
     # since the app has no gateway running the scheduler. Server `lenlion
     # dashboard` is unaffected — it relies on its own gateway.
@@ -167,23 +152,6 @@ async def _lifespan(app: "FastAPI"):
             cron_stop.set()
 
 
-def _get_event_state(app: "FastAPI"):
-    """Return (event_channels, event_lock) from app.state.
-
-    Lazily initialises the state if the lifespan hasn't run (e.g. when
-    TestClient is constructed without a ``with`` block).  The lifespan
-    path is preferred because it guarantees the Lock is created on the
-    correct event loop, but the lazy path lets existing non-``with``
-    TestClient usages keep working.
-    """
-    try:
-        return app.state.event_channels, app.state.event_lock
-    except AttributeError:
-        app.state.event_channels = {}
-        app.state.event_lock = asyncio.Lock()
-        return app.state.event_channels, app.state.event_lock
-
-
 app = FastAPI(title="Hermes Agent", version=__version__, lifespan=_lifespan)
 
 # ---------------------------------------------------------------------------
@@ -197,12 +165,8 @@ app = FastAPI(title="Hermes Agent", version=__version__, lifespan=_lifespan)
 _SESSION_TOKEN = os.environ.get("HERMES_DASHBOARD_SESSION_TOKEN") or secrets.token_urlsafe(32)
 _SESSION_HEADER_NAME = "X-Hermes-Session-Token"
 
-# In-browser Chat tab (/chat, /api/pty, /api/ws, …).  Always enabled: the
-# desktop app and the dashboard's own Chat tab both drive the agent over the
-# `/api/ws` + `/api/pty` WebSockets, so the embedded-chat surface is an
-# unconditional part of the dashboard.  Kept as a module-level constant (rather
-# than inlining ``True`` at every gate) so the WS endpoints and the SPA token
-# injection share a single, testable seam.
+# Vue chat UI connects over /api/ws (tui_gateway JSON-RPC). Kept as a module-level
+# constant so WS endpoints and SPA token injection share a single testable seam.
 _DASHBOARD_EMBEDDED_CHAT_ENABLED = True
 
 # Simple rate limiter for the reveal endpoint
@@ -10288,63 +10252,16 @@ async def get_models_analytics(days: int = 30, profile: Optional[str] = None):
 
 
 # ---------------------------------------------------------------------------
-# /api/pty — PTY-over-WebSocket bridge for the dashboard "Chat" tab.
-#
-# The endpoint spawns the same ``lenlion --tui`` binary the CLI uses, behind
-# a POSIX pseudo-terminal, and forwards bytes + resize escapes across a
-# WebSocket.  The browser renders the ANSI through xterm.js (see
-# web/src/pages/ChatPage.tsx).
-#
-# Auth: ``?token=<session_token>`` query param (browsers can't set
-# Authorization on the WS upgrade).  Same ephemeral ``_SESSION_TOKEN`` as
-# REST.  Localhost-only — we defensively reject non-loopback clients even
-# though uvicorn binds to 127.0.0.1.
+# WebSocket auth helpers + /api/ws (tui_gateway JSON-RPC for Vue chat UI).
 # ---------------------------------------------------------------------------
 
-# PTY bridge: POSIX uses pty_bridge (fcntl/termios/ptyprocess); native Windows
-# uses win_pty_bridge (pywinpty/ConPTY, already a declared dependency).  Both
-# expose the same public surface — spawn/read/write/resize/close/is_available —
-# so the /api/pty WebSocket handler needs no platform guards.
-if sys.platform.startswith("win"):
-    try:
-        from hermes_cli.win_pty_bridge import WinPtyBridge as PtyBridge, PtyUnavailableError
-        _PTY_BRIDGE_AVAILABLE = True
-    except ImportError:  # pragma: no cover - pywinpty missing
-        PtyBridge = None  # type: ignore[assignment]
-        _PTY_BRIDGE_AVAILABLE = False
-
-        class PtyUnavailableError(RuntimeError):  # type: ignore[no-redef]
-            """Stub when win_pty_bridge cannot be imported."""
-            pass
-else:
-    try:
-        from hermes_cli.pty_bridge import PtyBridge, PtyUnavailableError
-        _PTY_BRIDGE_AVAILABLE = True
-    except ImportError:  # pragma: no cover - dev env without ptyprocess
-        PtyBridge = None  # type: ignore[assignment]
-        _PTY_BRIDGE_AVAILABLE = False
-
-        class PtyUnavailableError(RuntimeError):  # type: ignore[no-redef]
-            """Stub on platforms where pty_bridge can't be imported."""
-            pass
-
-_RESIZE_RE = re.compile(rb"\x1b\[RESIZE:(\d+);(\d+)\]")
-_PTY_READ_CHUNK_TIMEOUT = 0.2
-_VALID_CHANNEL_RE = re.compile(r"^[A-Za-z0-9._-]{1,128}$")
 # Starlette's TestClient reports the peer as "testclient"; treat it as
 # loopback so tests don't need to rewrite request scope.
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost", "testclient"})
 
 
 def _ws_client_reason(ws: "WebSocket") -> Optional[str]:
-    """Return a rejection reason for the client IP, or None when allowed.
-
-    Reasons are short machine-parseable tokens logged on the rejection path
-    so a "WS keeps closing" report can be diagnosed from agent.log without a
-    repro. ``None`` means the peer IP passed this gate.
-
-    See :func:`_ws_client_is_allowed` for the full policy rationale.
-    """
+    """Return a rejection reason for the client IP, or None when allowed."""
     if getattr(app.state, "auth_required", False):
         return None
     bound_host = (getattr(app.state, "bound_host", "") or "").strip().lower()
@@ -10359,36 +10276,8 @@ def _ws_client_reason(ws: "WebSocket") -> Optional[str]:
 
 
 def _ws_client_is_allowed(ws: "WebSocket") -> bool:
-    """Check if the WebSocket client IP is acceptable.
-
-    Loopback bind: only loopback clients allowed — the legacy
-    ``?token=<_SESSION_TOKEN>`` path is the only auth we have, so we
-    don't want LAN hosts guessing tokens.
-
-    Explicit non-loopback bind (``--host 0.0.0.0``, ``--host ::``, or a
-    specific address such as a Tailscale/LAN IP, always with
-    ``--insecure``): allow any peer. The operator explicitly opted into
-    non-loopback exposure, so the loopback-only peer restriction does not
-    apply. DNS-rebinding is still blocked by the Host/Origin guard in
-    :func:`_ws_host_origin_is_allowed`, which mirrors the HTTP layer and
-    requires the Host header to match the bound interface — the same
-    defence ``_is_accepted_host`` applies to non-loopback HTTP requests.
-
-    Gated mode: any peer is allowed — uvicorn's ``proxy_headers=True``
-    (enabled when the OAuth gate is active so cookies can pick up
-    ``X-Forwarded-Proto``) rewrites ``ws.client.host`` to the
-    X-Forwarded-For value, which is the real internet client IP. The
-    OAuth gate + single-use ``?ticket=`` is the auth at that point; the
-    Host/Origin guard in :func:`_ws_host_origin_is_allowed` is what
-    blocks DNS-rebinding here, not the peer IP.
-    """
     if getattr(app.state, "auth_required", False):
         return True
-    # Any explicit non-loopback bind (0.0.0.0, ::, or a specific LAN /
-    # Tailscale address) means the operator opted into non-loopback
-    # access via --insecure.  The loopback-only peer gate only applies to
-    # an actual loopback bind; otherwise the WS handshake is rejected even
-    # though same-bind HTTP requests pass _is_accepted_host.
     bound_host = (getattr(app.state, "bound_host", "") or "").strip().lower()
     if bound_host and bound_host not in _LOOPBACK_HOSTS:
         return True
@@ -10399,63 +10288,38 @@ def _ws_client_is_allowed(ws: "WebSocket") -> bool:
 
 
 def _ws_host_origin_reason(ws: "WebSocket") -> Optional[str]:
-    """Return a Host/Origin rejection reason, or None when allowed.
-
-    Mirrors :func:`_ws_host_origin_is_allowed` but yields a short
-    machine-parseable token (``host_mismatch …`` / ``origin_mismatch …``)
-    on rejection so the close path can log *why* the upgrade was refused.
-    """
     bound_host = getattr(app.state, "bound_host", None)
     if not bound_host:
         return None
-
     host_header = ws.headers.get("host", "")
     if not _is_accepted_host(host_header, bound_host):
         return f"host_mismatch host={host_header or '?'} bound={bound_host}"
-
     origin = ws.headers.get("origin", "")
     if not origin:
         return None
-
     parsed = urllib.parse.urlparse(origin)
     if parsed.scheme not in {"http", "https"}:
-        # Non-web origin (packaged Electron: file://, null, app://). The
-        # upstream credential check is the real auth boundary; trust it.
-        # See _ws_host_origin_is_allowed for the full rationale.
         return None
-
     if not parsed.netloc:
         return f"origin_mismatch origin={origin} bound={bound_host}"
-
     if not _is_accepted_host(parsed.netloc, bound_host):
         return f"origin_mismatch origin={origin} bound={bound_host}"
     return None
 
 
 def _ws_host_origin_is_allowed(ws: "WebSocket") -> bool:
-    """Apply the dashboard Host/Origin guard to WebSocket upgrades.
-
-    FastAPI HTTP middleware does not run for WebSocket routes, so the
-    DNS-rebinding Host check used for normal dashboard HTTP requests must be
-    repeated here before accepting the upgrade.  Browsers also send an Origin
-    header on WebSocket handshakes; when present, require it to target the
-    same bound dashboard host.
-    """
     return _ws_host_origin_reason(ws) is None
 
 
 def _ws_request_reason(ws: "WebSocket") -> Optional[str]:
-    """First Host/Origin or peer-IP rejection reason, or None when allowed."""
     return _ws_host_origin_reason(ws) or _ws_client_reason(ws)
 
 
 def _ws_request_is_allowed(ws: "WebSocket") -> bool:
-    """Return True when the WebSocket upgrade matches dashboard boundaries."""
     return _ws_host_origin_is_allowed(ws) and _ws_client_is_allowed(ws)
 
 
 def _ws_auth_mode() -> str:
-    """Short label for the active WS auth mode — logged on every connection."""
     if getattr(app.state, "auth_required", False):
         return "gated"
     bound_host = (getattr(app.state, "bound_host", "") or "").strip().lower()
@@ -10465,51 +10329,14 @@ def _ws_auth_mode() -> str:
 
 
 def _ws_auth_reason(ws: "WebSocket") -> tuple[Optional[str], str]:
-    """Validate WS-upgrade auth; return ``(reason, credential)``.
-
-    ``reason`` is None when the credential is accepted, else a short
-    machine-parseable token explaining the rejection (``no_credential``,
-    ``token_mismatch``, ``ticket_invalid``, ``internal_invalid``).
-    ``credential`` names which credential type was presented (``ticket``,
-    ``internal``, ``token``, or ``none``) so the accepted path can log *how*
-    a peer authed, not just that it did.
-
-    Loopback / ``--insecure``: legacy ``?token=<_SESSION_TOKEN>`` query
-    parameter, constant-time compared.
-
-    Gated (public bind, no ``--insecure``): one of two credentials —
-
-    * ``?ticket=<single-use>`` — a browser-minted, single-use, 30s-TTL ticket
-      consumed against the dashboard-auth ticket store. This is what the SPA
-      (and native clients) use.
-    * ``?internal=<process-credential>`` — the process-lifetime internal
-      credential, used only by WS clients the server spawns itself (the
-      embedded-TUI PTY child attaching to ``/api/ws`` and ``/api/pub``). It
-      is multi-use and never expires so the child can reconnect, and is never
-      injected into the SPA — see ``dashboard_auth.ws_tickets`` for the
-      threat model.
-
-    The legacy ``?token=`` path is unconditionally rejected in gated mode
-    (the SPA bundle isn't carrying the token any longer, and a leaked
-    ``_SESSION_TOKEN`` must not grant WS access once the gate is engaged).
-
-    Audit-logs the rejection so operators can debug "WS keeps closing"
-    issues from the log.
-    """
     auth_required = bool(getattr(app.state, "auth_required", False))
     if auth_required:
-        # Lazy import — keeps this function importable in test harnesses
-        # that don't bring in the dashboard_auth layer.
         from hermes_cli.dashboard_auth.audit import AuditEvent, audit_log
         from hermes_cli.dashboard_auth.ws_tickets import (
             TicketInvalid,
             consume_internal_credential,
             consume_ticket,
         )
-
-        # Server-spawned children (PTY child → /api/ws, /api/pub) present the
-        # multi-use internal credential rather than a single-use ticket, so
-        # they survive reconnects and slow cold boots.
         internal = ws.query_params.get("internal", "")
         if internal:
             try:
@@ -10523,11 +10350,9 @@ def _ws_auth_reason(ws: "WebSocket") -> tuple[Optional[str], str]:
                     path=ws.url.path,
                 )
                 return "internal_invalid", "internal"
-
         ticket = ws.query_params.get("ticket", "")
         if not ticket:
             return "no_credential", "none"
-
         try:
             consume_ticket(ticket)
             return None, "ticket"
@@ -10539,7 +10364,6 @@ def _ws_auth_reason(ws: "WebSocket") -> tuple[Optional[str], str]:
                 path=ws.url.path,
             )
             return "ticket_invalid", "ticket"
-
     token = ws.query_params.get("token", "")
     if not token:
         return "no_credential", "none"
@@ -10549,349 +10373,7 @@ def _ws_auth_reason(ws: "WebSocket") -> tuple[Optional[str], str]:
 
 
 def _ws_auth_ok(ws: "WebSocket") -> bool:
-    """True when the WS-upgrade credential is accepted. See _ws_auth_reason."""
     return _ws_auth_reason(ws)[0] is None
-
-# Per-channel subscriber registry used by /api/pub (PTY-side gateway → dashboard)
-# and /api/events (dashboard → browser sidebar).  Keyed by an opaque channel id
-# the chat tab generates on mount; entries auto-evict when the last subscriber
-# drops AND the publisher has disconnected.
-# (State is initialised in _lifespan on app startup — see above.)
-
-
-def _resolve_chat_argv(
-    resume: Optional[str] = None,
-    sidecar_url: Optional[str] = None,
-    profile: Optional[str] = None,
-) -> tuple[list[str], Optional[str], Optional[dict]]:
-    """Resolve the argv + cwd + env for the chat PTY.
-
-    Default: whatever ``lenlion --tui`` would run.  Tests monkeypatch this
-    function to inject a tiny fake command (``cat``, ``sh -c 'printf …'``)
-    so nothing has to build Node or the TUI bundle.
-
-    Session resume is propagated via the ``HERMES_TUI_RESUME`` env var —
-    matching what ``hermes_cli.main._launch_tui`` does for the CLI path.
-    Appending ``--resume <id>`` to argv doesn't work because ``ui-tui`` does
-    not parse its argv.
-
-    ``HERMES_TUI_GATEWAY_URL`` is injected so the PTY child can attach to
-    this process's in-memory ``tui_gateway`` instance instead of spawning
-    its own Python gateway subprocess.
-
-    `sidecar_url` (when set) is forwarded as ``HERMES_TUI_SIDECAR_URL`` so
-    the spawned ``tui_gateway.entry`` can mirror dispatcher emits to the
-    dashboard's ``/api/pub`` endpoint (see :func:`pub_ws`).
-
-    `profile` (when set) scopes the ENTIRE chat to that profile by pointing
-    ``HERMES_HOME`` at the profile dir in the child env. Every spawned
-    process (the TUI and the ``tui_gateway.entry`` it launches) resolves
-    ``get_hermes_home()`` from that env var at its own import, so the child
-    binds the profile's config, skills, memory, and state.db from the start
-    — the same propagation ``lenlion -p <name>`` performs. The in-process
-    ``HERMES_TUI_GATEWAY_URL`` attach is SKIPPED for scoped chats: the
-    dashboard's in-memory gateway runs under the dashboard's own profile,
-    so a profile-scoped chat must spawn its own gateway subprocess.
-    """
-    from hermes_cli.main import PROJECT_ROOT, _make_tui_argv
-
-    profile_dir: Optional[Path] = None
-    requested = (profile or "").strip()
-    if requested and requested.lower() != "current":
-        profile_dir = _resolve_profile_dir(requested)
-
-    argv, cwd = _make_tui_argv(PROJECT_ROOT / "ui-tui", tui_dev=False)
-    env = os.environ.copy()
-    try:
-        from hermes_cli.config import apply_terminal_config_to_env
-        apply_terminal_config_to_env(env=env)
-    except Exception:
-        _log.debug("Failed to apply terminal config bridge for dashboard chat", exc_info=True)
-    env.setdefault("NODE_ENV", "production")
-    # Browser-embedded chat should prefer stable wheel-based scrollback over
-    # native terminal mouse tracking. When mouse tracking is enabled, wheel
-    # events are consumed by the TUI and forwarded as terminal input, which
-    # makes browser-side transcript scrolling feel broken. Keep the terminal
-    # build unchanged for native CLI usage; only disable mouse tracking for
-    # the dashboard PTY path.
-    env.setdefault("HERMES_TUI_DISABLE_MOUSE", "1")
-    env.setdefault("HERMES_TUI_INLINE", "1")
-
-    if profile_dir is not None:
-        env["HERMES_HOME"] = str(profile_dir)
-
-    if resume:
-        latest_resume, _latest_path = _session_latest_descendant(resume)
-        if latest_resume:
-            resume = latest_resume
-        env["HERMES_TUI_RESUME"] = resume
-
-    if sidecar_url:
-        env["HERMES_TUI_SIDECAR_URL"] = sidecar_url
-
-    # Profile-scoped chats must NOT attach to the dashboard's in-memory
-    # gateway — it runs under the dashboard's own profile. Without the
-    # attach URL, gatewayClient spawns its own `tui_gateway.entry`, which
-    # inherits the profile HERMES_HOME set above.
-    if profile_dir is None:
-        if gateway_ws_url := _build_gateway_ws_url():
-            env["HERMES_TUI_GATEWAY_URL"] = gateway_ws_url
-
-    return list(argv), str(cwd) if cwd else None, env
-
-
-def _build_gateway_ws_url() -> Optional[str]:
-    """ws:// URL the PTY child should attach to for JSON-RPC gateway traffic.
-
-    Loopback / ``--insecure``: ``?token=<_SESSION_TOKEN>``.
-
-    Gated mode: the legacy token path is rejected by ``_ws_auth_ok``, so the
-    server-spawned PTY child authenticates with the process-lifetime internal
-    credential (``?internal=``). It must NOT use a single-use browser ticket:
-    the child reads this URL once at startup and reuses it on every reconnect,
-    and a 30s-TTL ticket can expire before a slow cold boot even dials.
-    """
-    host = getattr(app.state, "bound_host", None)
-    port = getattr(app.state, "bound_port", None)
-
-    if not host or not port:
-        return None
-
-    netloc = (
-        f"[{host}]:{port}"
-        if ":" in host and not host.startswith("[")
-        else f"{host}:{port}"
-    )
-
-    if getattr(app.state, "auth_required", False):
-        from hermes_cli.dashboard_auth.ws_tickets import internal_ws_credential
-
-        qs = urllib.parse.urlencode({"internal": internal_ws_credential()})
-    else:
-        qs = urllib.parse.urlencode({"token": _SESSION_TOKEN})
-
-    return f"ws://{netloc}/api/ws?{qs}"
-
-
-def _build_sidecar_url(channel: str) -> Optional[str]:
-    """ws:// URL the PTY child should publish events to, or None when unbound.
-
-    Loopback / ``--insecure``: uses ``?token=<_SESSION_TOKEN>``.
-
-    Gated mode: authenticates with the process-lifetime internal credential
-    (``?internal=``), the same one ``_build_gateway_ws_url`` uses. The PTY
-    child is a server-spawned process we trust; the credential is multi-use
-    and never expires, so the child can reconnect ``/api/pub`` without a new
-    URL. (This previously minted a single-use 30s ticket, which meant the
-    child could not reconnect and could miss the window on a slow cold boot.)
-    Connections authenticated this way are recorded under the
-    ``server-internal`` identity in the audit log.
-    """
-    host = getattr(app.state, "bound_host", None)
-    port = getattr(app.state, "bound_port", None)
-
-    if not host or not port:
-        return None
-
-    netloc = f"[{host}]:{port}" if ":" in host and not host.startswith("[") else f"{host}:{port}"
-
-    if getattr(app.state, "auth_required", False):
-        # Gated mode — use the internal credential so the WS upgrade survives
-        # _ws_auth_ok and the child can reconnect.
-        from hermes_cli.dashboard_auth.ws_tickets import internal_ws_credential
-
-        qs = urllib.parse.urlencode(
-            {"internal": internal_ws_credential(), "channel": channel}
-        )
-    else:
-        qs = urllib.parse.urlencode({"token": _SESSION_TOKEN, "channel": channel})
-
-    return f"ws://{netloc}/api/pub?{qs}"
-
-
-async def _broadcast_event(app: Any, channel: str, payload: str) -> None:
-    """Fan out one publisher frame to every subscriber on `channel`."""
-    event_channels, event_lock = _get_event_state(app)
-    async with event_lock:
-        subs = list(event_channels.get(channel, ()))
-
-    for sub in subs:
-        try:
-            await sub.send_text(payload)
-        except Exception:
-            # Subscriber went away mid-send; the /api/events finally clause
-            # will remove it from the registry on its next iteration.
-            _log.warning("broadcast send failed for subscriber on %s", channel, exc_info=True)
-
-
-def _channel_or_close_code(ws: WebSocket) -> Optional[str]:
-    """Return the channel id from the query string or None if invalid."""
-    channel = ws.query_params.get("channel", "")
-
-    return channel if _VALID_CHANNEL_RE.match(channel) else None
-
-
-def _ws_close_reason(text: str) -> str:
-    """Clamp a WS close reason to the protocol's 123-byte UTF-8 limit.
-
-    RFC 6455 caps the close-frame reason at 123 bytes; uvicorn raises if a
-    longer string is passed. Our reasons embed an attacker-controlled origin,
-    so truncate defensively rather than crash the close handler.
-    """
-    encoded = text.encode("utf-8", "replace")
-    if len(encoded) <= 123:
-        return text
-    return encoded[:120].decode("utf-8", "ignore") + "..."
-
-
-@app.websocket("/api/pty")
-async def pty_ws(ws: WebSocket) -> None:
-    peer = ws.client.host if ws.client else "?"
-
-    if not _DASHBOARD_EMBEDDED_CHAT_ENABLED:
-        _log.info("pty refused: embedded chat disabled peer=%s", peer)
-        await ws.close(code=4404, reason="embedded chat disabled")
-        return
-
-    # --- auth + host/origin/peer check (before accept so we can close
-    #     cleanly AND tell the client WHY via the close code + reason).
-    #     Each gate maps to a distinct close code so the log and the
-    #     browser banner agree on the cause:
-    #       4401 bad credential   4403 host/origin mismatch
-    #       4408 peer not allowed  4404 chat disabled
-    auth_reason, cred = _ws_auth_reason(ws)
-    mode = _ws_auth_mode()
-    if auth_reason is not None:
-        _log.warning(
-            "pty auth rejected reason=%s mode=%s cred=%s peer=%s",
-            auth_reason, mode, cred, peer,
-        )
-        await ws.close(code=4401, reason=_ws_close_reason(f"auth: {auth_reason}"))
-        return
-
-    host_origin_reason = _ws_host_origin_reason(ws)
-    if host_origin_reason is not None:
-        _log.warning("pty refused: %s peer=%s", host_origin_reason, peer)
-        await ws.close(code=4403, reason=_ws_close_reason(host_origin_reason))
-        return
-
-    client_reason = _ws_client_reason(ws)
-    if client_reason is not None:
-        _log.warning("pty refused: %s", client_reason)
-        await ws.close(code=4408, reason=_ws_close_reason(client_reason))
-        return
-
-    await ws.accept()
-    _log.info("pty accepted peer=%s mode=%s cred=%s", peer, mode, cred)
-
-    # On native Windows, the POSIX PTY bridge can't be imported.  Tell the
-    # client and close cleanly rather than pretending the feature works.
-    if not _PTY_BRIDGE_AVAILABLE:
-        await ws.send_text(
-            "\r\n\x1b[31mChat unavailable: the embedded terminal requires a "
-            "POSIX PTY, which native Windows Python doesn't provide.\x1b[0m\r\n"
-            "\x1b[33mInstall Hermes inside WSL2 to use the dashboard's /chat "
-            "tab — the rest of the dashboard works here.\x1b[0m\r\n"
-        )
-        await ws.close(code=1011)
-        return
-
-    # --- spawn PTY ------------------------------------------------------
-    resume = ws.query_params.get("resume") or None
-    profile = ws.query_params.get("profile") or None
-    channel = _channel_or_close_code(ws)
-    sidecar_url = _build_sidecar_url(channel) if channel else None
-
-    try:
-        argv, cwd, env = _resolve_chat_argv(
-            resume=resume, sidecar_url=sidecar_url, profile=profile
-        )
-    except HTTPException as exc:
-        # Unknown/invalid profile from _resolve_profile_dir.
-        await ws.send_text(f"\r\n\x1b[31mChat unavailable: {exc.detail}\x1b[0m\r\n")
-        await ws.close(code=1011)
-        return
-    except SystemExit as exc:
-        # _make_tui_argv calls sys.exit(1) when node/npm is missing.
-        await ws.send_text(f"\r\n\x1b[31mChat unavailable: {exc}\x1b[0m\r\n")
-        await ws.close(code=1011)
-        return
-
-
-    try:
-        bridge = PtyBridge.spawn(argv, cwd=cwd, env=env)
-    except PtyUnavailableError as exc:
-        await ws.send_text(f"\r\n\x1b[31mChat unavailable: {exc}\x1b[0m\r\n")
-        await ws.close(code=1011)
-        return
-    except (FileNotFoundError, OSError) as exc:
-        await ws.send_text(f"\r\n\x1b[31mChat failed to start: {exc}\x1b[0m\r\n")
-        await ws.close(code=1011)
-        return
-
-    loop = asyncio.get_running_loop()
-
-    # --- reader task: PTY master → WebSocket ----------------------------
-    async def pump_pty_to_ws() -> None:
-        while True:
-            chunk = await loop.run_in_executor(
-                None, bridge.read, _PTY_READ_CHUNK_TIMEOUT
-            )
-            if chunk is None:  # EOF
-                return
-            if not chunk:  # no data this tick; yield control and retry
-                await asyncio.sleep(0)
-                continue
-            try:
-                await ws.send_bytes(chunk)
-            except Exception:
-                return
-
-    reader_task = asyncio.create_task(pump_pty_to_ws())
-
-    # --- writer loop: WebSocket → PTY master ----------------------------
-    try:
-        while True:
-            msg = await ws.receive()
-            msg_type = msg.get("type")
-            if msg_type == "websocket.disconnect":
-                break
-            raw = msg.get("bytes")
-            if raw is None:
-                text = msg.get("text")
-                raw = text.encode("utf-8") if isinstance(text, str) else b""
-            if not raw:
-                continue
-
-            # Resize escape is consumed locally, never written to the PTY.
-            match = _RESIZE_RE.match(raw)
-            if match and match.end() == len(raw):
-                cols = int(match.group(1))
-                rows = int(match.group(2))
-                bridge.resize(cols=cols, rows=rows)
-                continue
-
-            bridge.write(raw)
-    except WebSocketDisconnect:
-        pass
-    finally:
-        reader_task.cancel()
-        try:
-            await reader_task
-        except (asyncio.CancelledError, Exception):
-            pass
-        bridge.close()
-
-
-# ---------------------------------------------------------------------------
-# /api/ws — JSON-RPC WebSocket sidecar for the dashboard "Chat" tab.
-#
-# Drives the same `tui_gateway.dispatch` surface Ink uses over stdio, so the
-# dashboard can render structured metadata (model badge, tool-call sidebar,
-# slash launcher, session info) alongside the xterm.js terminal that PTY
-# already paints. Both transports bind to the same session id when one is
-# active, so a tool.start emitted by the agent fans out to both sinks.
-# ---------------------------------------------------------------------------
 
 
 @app.websocket("/api/ws")
@@ -10899,102 +10381,15 @@ async def gateway_ws(ws: WebSocket) -> None:
     if not _DASHBOARD_EMBEDDED_CHAT_ENABLED:
         await ws.close(code=4403)
         return
-
     if not _ws_auth_ok(ws):
         await ws.close(code=4401)
         return
-
     if not _ws_request_is_allowed(ws):
         await ws.close(code=4403)
         return
-
     from tui_gateway.ws import handle_ws
-
     await handle_ws(ws)
 
-
-# ---------------------------------------------------------------------------
-# /api/pub + /api/events — chat-tab event broadcast.
-#
-# The PTY-side ``tui_gateway.entry`` opens /api/pub at startup (driven by
-# HERMES_TUI_SIDECAR_URL set in /api/pty's PTY env) and writes every
-# dispatcher emit through it.  The dashboard fans those frames out to any
-# subscriber that opened /api/events on the same channel id.  This is what
-# gives the React sidebar its tool-call feed without breaking the PTY
-# child's stdio handshake with Ink.
-# ---------------------------------------------------------------------------
-
-
-@app.websocket("/api/pub")
-async def pub_ws(ws: WebSocket) -> None:
-    if not _DASHBOARD_EMBEDDED_CHAT_ENABLED:
-        await ws.close(code=4403)
-        return
-
-    if not _ws_auth_ok(ws):
-        await ws.close(code=4401)
-        return
-
-    if not _ws_request_is_allowed(ws):
-        await ws.close(code=4403)
-        return
-
-    channel = _channel_or_close_code(ws)
-    if not channel:
-        await ws.close(code=4400)
-        return
-
-    await ws.accept()
-
-    try:
-        while True:
-            await _broadcast_event(ws.app, channel, await ws.receive_text())
-    except WebSocketDisconnect:
-        pass
-
-
-@app.websocket("/api/events")
-async def events_ws(ws: WebSocket) -> None:
-    if not _DASHBOARD_EMBEDDED_CHAT_ENABLED:
-        await ws.close(code=4403)
-        return
-
-    if not _ws_auth_ok(ws):
-        await ws.close(code=4401)
-        return
-
-    if not _ws_request_is_allowed(ws):
-        await ws.close(code=4403)
-        return
-
-    channel = _channel_or_close_code(ws)
-    if not channel:
-        await ws.close(code=4400)
-        return
-
-    await ws.accept()
-
-    event_channels, event_lock = _get_event_state(ws.app)
-    async with event_lock:
-        event_channels.setdefault(channel, set()).add(ws)
-
-    try:
-        while True:
-            # Subscribers don't speak — the receive() just blocks until
-            # disconnect so the connection stays open as long as the
-            # browser holds it.
-            await ws.receive_text()
-    except WebSocketDisconnect:
-        pass
-    finally:
-        async with event_lock:
-            subs = event_channels.get(channel)
-
-            if subs is not None:
-                subs.discard(ws)
-
-                if not subs:
-                    event_channels.pop(channel, None)
 
 
 def _normalise_prefix(raw: Optional[str]) -> str:

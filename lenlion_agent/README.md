@@ -4,7 +4,8 @@
 
 ## 能力概览
 
-- **CLI / TUI** — 终端交互式 Agent
+- **CLI** — 终端交互式 Agent（prompt_toolkit）
+- **Web Chat** — Vue 3 浏览器聊天界面（`lenlion dashboard`）
 - **Gateway** — 多平台消息接入（Telegram、Discord、Slack、微信、飞书等）
 - **Tools & Skills** — 终端、文件、浏览器、搜索、委派子 Agent 等
 - **Cron** — 自然语言定时任务
@@ -15,7 +16,7 @@
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e ".[cli,pty,mcp,cron]"
+pip install -e ".[cli,web,mcp,cron]"
 lenlion setup
 ```
 
@@ -23,11 +24,21 @@ lenlion setup
 
 ```bash
 lenlion              # 经典 CLI
-lenlion --tui        # Ink TUI
+lenlion dashboard    # Web 聊天界面（默认 http://127.0.0.1:9119）
 lenlion gateway      # 消息网关
 lenlion cron list    # 定时任务
 lenlion doctor       # 环境检查
 ```
+
+### 构建 Web 前端
+
+```bash
+cd web
+npm install
+npm run build   # 输出到 hermes_cli/web_dist/
+```
+
+`lenlion dashboard` 会在 dist 过期时自动尝试构建（需本机安装 Node.js/npm）。
 
 配置与数据目录仍为 `~/.hermes/`（与上游 Hermes 兼容）。
 
@@ -41,10 +52,10 @@ lenlion_agent/
 ├── cli.py            # CLI 编排
 ├── agent/            # Agent 内部模块
 ├── tools/            # 工具实现
-├── hermes_cli/       # CLI 子命令
+├── hermes_cli/       # CLI 子命令 + FastAPI Web 服务
 ├── gateway/          # 消息网关
-├── ui-tui/           # TUI 前端
-├── tui_gateway/      # TUI 后端
+├── web/              # Vue 3 聊天前端
+├── tui_gateway/      # WebSocket JSON-RPC 聊天后端引擎
 ├── cron/             # 调度器
 ├── plugins/          # 内置插件
 ├── skills/           # 内置技能

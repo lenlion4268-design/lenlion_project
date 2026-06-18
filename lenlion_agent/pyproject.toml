@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lenlion-agent"
-version = "0.1.0"
+version = "0.2.0"
 description = "Lenlion AI agent — CLI, gateway, tools, skills, and cron scheduling (forked from Hermes Agent core)"
 readme = "README.md"
 # Upper bound is load-bearing, not cosmetic. uv resolves the project's
@@ -324,7 +324,7 @@ locales = ["locales/*.yaml"]
 "optional-mcps/n8n" = ["optional-mcps/n8n/manifest.yaml"]
 
 [tool.setuptools.package-data]
-hermes_cli = ["web_dist/**/*", "tui_dist/**/*", "scripts/install.sh", "scripts/install.ps1"]
+hermes_cli = ["web_dist/**/*", "scripts/install.sh", "scripts/install.ps1"]
 gateway = ["assets/**/*"]
 plugins = [
   "*/dashboard/manifest.json",

@@ -1,0 +1,24 @@
+# Dependabot configuration for lenlion-agent.
+#
+# Deliberately scoped to github-actions only — source deps are exact-pinned
+# in uv.lock and updated deliberately, not on a schedule.
+
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(actions)"
+      include: "scope"
+    groups:
+      actions-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"

@@ -13,7 +13,7 @@ Lenlion Agent 是一个 **可插拔、多入口、多平台** 的 AI Agent 运�
 | **单一 Agent 核心** | 所有交互模式（CLI、Web Chat、Gateway、Cron）最终都调用 `AIAgent.run_conversation()` |
 | **注册表驱动** | 工具（Tools）、插件（Plugins）、模型提供方（Providers）通过注册/发现机制扩展，而非硬编码 |
 | **分层解耦** | CLI 编排、对话循环、工具执行、平台适配、持久化各自独立模块 |
-| **配置集中** | `~/.hermes/config.yaml` + `.env` 统一管理；Profile 支持多实例隔离 |
+| **配置集中** | 默认 `~/.hermes/config.yaml` + `.env`；Docker 下可经 `DATABASE_URL` 存入 Postgres |
 | **渐进式能力加载** | 可选依赖通过 `extras` + `lazy_deps` 按需安装，减小默认安装体积 |
 
 ### 1.1 逻辑分层
@@ -22,7 +22,7 @@ Lenlion Agent 是一个 **可插拔、多入口、多平台** 的 AI Agent 运�
 flowchart TB
   subgraph presentation [表现层]
     CLI[lenlion CLI<br/>cli.py REPL]
-    WEB[Vue Web Chat<br/>web/]
+    WEB[Vue Web Platform<br/>web/]
     DASH[FastAPI Dashboard<br/>hermes_cli/web_server.py]
     GW[消息网关<br/>gateway/]
     CRON[定时任务<br/>cron/]
@@ -55,7 +55,9 @@ flowchart TB
   end
 
   subgraph persistence [持久化]
-    STATE[hermes_state.py<br/>state.db]
+    STATE[hermes_state.py<br/>SessionDB]
+    SQLITE[state.db<br/>默认 SQLite]
+    PG[(Postgres<br/>DATABASE_URL)]
     HOME[~/.hermes/]
   end
 
@@ -79,9 +81,12 @@ flowchart TB
   RA --> SK
   RA --> PR
   LOOP --> STATE
+  STATE --> SQLITE
+  STATE -.->|Docker| PG
   MAIN --> HOME
   GW --> HOME
   TG --> STATE
+  CFG -.->|DATABASE_URL| PG
 ```
 
 ---
@@ -94,31 +99,41 @@ lenlion-project/
 ├── README.md                # Monorepo 入口
 ├── .github/                 # CI（working-directory: lenlion_agent）
 └── lenlion_agent/           # 独立 Agent 项目根
+    ├── DOCKER.md            # Docker 部署与运维
+    ├── Dockerfile
+    ├── docker-compose.yml   # dashboard + gateway + postgres
+    ├── docker/postgres/     # Postgres 初始化 schema
     ├── lenlion              # 开发用 CLI 启动脚本
     ├── run_agent.py         # AIAgent 主类 + lenlion-agent 入口
     ├── cli.py               # 经典 prompt_toolkit 交互 REPL
     ├── model_tools.py       # 工具编排公共 API
     ├── toolsets.py          # 工具集定义与组合
     ├── hermes_constants.py  # 全局常量（CLI 名、HERMES_HOME 等）
-    ├── hermes_state.py      # SQLite 会话持久化
+    ├── hermes_state.py      # 会话持久化（SQLite 默认；DATABASE_URL → Postgres）
+    ├── hermes_state_postgres.py  # Postgres 会话后端
     ├── hermes_cli/          # CLI 子命令、FastAPI Dashboard、web_dist/
+    │   ├── config.py        # 配置加载/保存（文件或 Postgres）
+    │   ├── config_store_postgres.py
+    │   ├── env_i18n.py      # 密钥页中文说明
+    │   └── web_server.py    # FastAPI + REST /api/*
     ├── agent/               # 对话循环、上下文、Transport、Memory 等
     ├── tools/               # 各工具实现（registry.register）
     ├── gateway/             # 多平台消息网关
-    ├── web/                 # Vue 3 聊天前端（Vite 源码）
+    ├── web/                 # Vue 3 平台前端（侧栏 + 12 视图）
     ├── tui_gateway/         # WebSocket JSON-RPC 聊天后端引擎（非终端 UI）
     ├── cron/                # 定时任务存储与调度
     ├── plugins/             # 内置插件（Provider、Memory、Platform 等）
     ├── providers/           # ProviderProfile 抽象与注册
     ├── skills/              # 内置技能包（SKILL.md）
     ├── locales/             # 多语言静态文案
+    ├── scripts/             # 开发与部署脚本（含 deploy-docker.sh）
     ├── optional-mcps/       # 可选 MCP 目录清单
     └── tests/               # Pytest 测试
 ```
 
 **相对上游 Hermes 已移除**：Ink TUI（`ui-tui/`）、PTY 嵌入层（`/api/pty`）、`lenlion --tui`。
 
-**未迁移模块**（见 `lenlion_agent/MIGRATION.md`）：文档站、Electron 桌面端、上游全功能 React Dashboard、上游 s6-overlay 全功能 Docker/Nix 打包、`acp_adapter/` 等（本 fork 提供精简 Docker，见根目录 `DOCKER.md`）。
+**未迁移模块**（见 `lenlion_agent/MIGRATION.md`）：文档站、Electron 桌面端、上游全功能 React Dashboard、上游 s6-overlay 全功能 Docker/Nix 打包、`acp_adapter/` 等（本 fork 提供精简 Docker，见 `lenlion_agent/DOCKER.md`）。
 
 ---
 
@@ -141,7 +156,7 @@ lenlion-project/
 | 子命令 | 职责 |
 |--------|------|
 | `chat`（默认） | 经典 REPL 交互对话 |
-| `dashboard` | 启动 FastAPI Web 服务 + Vue 聊天界面 |
+| `dashboard` | 启动 FastAPI Web 服务 + Vue 平台界面 |
 | `gateway` | 启动/管理消息网关进程 |
 | `cron` | 定时任务 CRUD |
 | `setup` / `model` / `auth` | 配置向导与模型/凭证管理 |
@@ -168,7 +183,7 @@ sequenceDiagram
     CLI->>REPL: cmd_chat
     REPL->>Agent: run_conversation
     Agent->>LLM: transport 调用
-  else Web Chat
+  else Web Platform
     User->>CLI: lenlion dashboard
     CLI->>Dash: start_server :9119
     User->>Browser: 打开浏览器
@@ -216,7 +231,7 @@ sequenceDiagram
   → 循环直至模型给出最终文本或无 tool_calls
   → 上下文压缩（超 token 阈值时）
   → 后置钩子（memory 写入、curator 提示等）
-  → 持久化到 state.db
+  → 持久化到 SessionDB（SQLite 或 Postgres）
 ```
 
 关键协作模块：
@@ -335,20 +350,54 @@ Gateway 与 CLI 通过 `enabled_toolsets` / `disabled_toolsets` 配置差异化�
 
 ---
 
-## 7. Web Chat 架构
+## 7. Web Platform 架构
 
-Lenlion 的浏览器聊天界面由 **Vue 前端 + FastAPI 静态服务 + tui_gateway JSON-RPC 引擎** 三部分组成。`tui_gateway` 名称来自上游 Hermes TUI 时代，在本 fork 中 **仅作为 Web 聊天后端**，不再驱动终端 UI。
+Lenlion 的浏览器界面由 **Vue 平台 SPA + FastAPI Dashboard + tui_gateway JSON-RPC 引擎** 三部分组成。`tui_gateway` 名称来自上游 Hermes TUI 时代，在本 fork 中 **仅作为 Web 聊天后端**，不再驱动终端 UI。
 
 ### 7.1 组件职责
 
 | 组件 | 路径 | 职责 |
 |------|------|------|
-| **Vue SPA** | `web/` | 聊天 UI：消息列表、输入框、推理/工具状态、审批/澄清/密钥对话框 |
+| **Vue SPA** | `web/` | 侧栏平台 UI：概览、聊天、模型、配置、密钥、工具集、技能、MCP、网关、Cron、会话、日志 |
 | **静态产物** | `hermes_cli/web_dist/` | `npm run build` 输出，打包进 wheel |
 | **Dashboard 服务** | `hermes_cli/web_server.py` | FastAPI：serve SPA、`/api/ws`、REST 管理 API、OAuth 门控 |
 | **聊天网关** | `tui_gateway/` | JSON-RPC 会话管理、Agent 构建、事件推送 |
 
-### 7.2 启动与构建
+### 7.2 前端结构
+
+```
+web/src/
+├── App.vue                 # 侧栏壳 + 视图路由（Pinia nav）
+├── components/layout/      # AppSidebar 等布局组件
+├── views/                  # 12 个功能视图
+│   ├── OverviewView.vue    # 概览 / doctor
+│   ├── ChatView.vue        # 聊天（复用 MessageList、Composer 等）
+│   ├── ModelView.vue       # 模型选择与切换
+│   ├── ConfigView.vue      # config.yaml 编辑
+│   ├── EnvView.vue         # API Key / 环境变量（中文说明）
+│   ├── ToolsView.vue       # 工具集开关
+│   ├── SkillsView.vue      # 技能列表
+│   ├── McpView.vue         # MCP 服务
+│   ├── GatewayView.vue     # 消息网关状态
+│   ├── CronView.vue        # 定时任务
+│   ├── SessionsView.vue    # 会话列表
+│   └── LogsView.vue        # 运行日志
+├── stores/
+│   ├── app.ts              # 导航状态（nav、侧栏折叠）
+│   └── chat.ts             # 聊天 WebSocket 事件状态
+└── lib/
+    ├── apiClient.ts        # REST `/api/*` 封装（管理页）
+    └── gatewayClient.ts    # WebSocket JSON-RPC（聊天页）
+```
+
+导航由 `stores/app.ts` 的 `nav` 字段驱动，无 Vue Router；聊天与管理功能 **双通道通信**：
+
+| 通道 | 客户端 | 协议 | 用途 |
+|------|--------|------|------|
+| **聊天** | `gatewayClient.ts` | WS `/api/ws` JSON-RPC | 会话创建、消息流、工具/审批/澄清事件 |
+| **管理** | `apiClient.ts` | HTTP REST `/api/*` | 配置、密钥、模型、工具集、网关、Cron 等 |
+
+### 7.3 启动与构建
 
 ```
 lenlion dashboard
@@ -364,7 +413,7 @@ Vite 配置（`web/vite.config.ts`）：
 - `outDir: '../hermes_cli/web_dist'` — 构建产物直接进入 Python 包
 - 开发模式 `proxy /api → :9119` — 前后端联调
 
-### 7.3 通信协议
+### 7.4 聊天通信协议（WebSocket）
 
 **WebSocket `/api/ws`** — 与上游 stdio TUI 相同的 **换行分隔 JSON-RPC 2.0**：
 
@@ -396,7 +445,27 @@ Browser                          tui_gateway/server.py
 | `session.interrupt` | 中断进行中的生成 |
 | `approval.respond` / `clarify.respond` / `secret.respond` | 交互式对话框响应 |
 
-### 7.4 Agent 实例化
+### 7.5 REST 管理 API（管理视图）
+
+管理视图通过 `apiClient.ts` 调用 `web_server.py` 已有 REST 端点，写入经 `hermes_cli/config.py` 持久化（文件或 Postgres，见 §10）：
+
+| 视图 | 主要端点 |
+|------|----------|
+| 概览 | `GET /api/status`、`POST /api/ops/doctor` |
+| 模型 | `GET /api/model/info`、`POST /api/model/switch` |
+| 配置 | `GET/PUT /api/config` |
+| 密钥 | `GET/PUT /api/env?lang=zh` |
+| 工具集 | `GET /api/tools/toolsets`、`PUT /api/tools/toolsets/{name}` |
+| 技能 | `GET /api/skills`、`PUT /api/skills/toggle` |
+| MCP | `GET /api/mcp/servers` |
+| 网关 | `GET /api/messaging/platforms`、`POST /api/gateway/{action}` |
+| Cron | `GET /api/cron/jobs` |
+| 会话 | `GET /api/sessions` |
+| 日志 | `GET /api/logs` |
+
+密钥页中文说明：`GET /api/env?lang=zh` 时，`env_i18n.localize_env_description()` 从 `env_descriptions_zh.yaml` 覆盖英文描述；默认语言跟随 `display.language`（未设置时默认 `zh`）。
+
+### 7.6 Agent 实例化
 
 Dashboard 路径下 Agent 由 `tui_gateway.server._make_agent()` 构建，而非 REPL 的 `cli.py` 路径：
 
@@ -404,7 +473,7 @@ Dashboard 路径下 Agent 由 `tui_gateway.server._make_agent()` 构建，而非
 - 会话级 model / toolsets 覆盖
 - 事件通过 `tui_gateway/event_publisher.py` 推送到 WebSocket 客户端
 
-### 7.5 鉴权与安全
+### 7.7 鉴权与安全
 
 | 模式 | 机制 |
 |------|------|
@@ -412,9 +481,9 @@ Dashboard 路径下 Agent 由 `tui_gateway.server._make_agent()` 构建，而非
 | **OAuth 门控** | `dashboard_auth/` 中间件；公开路径白名单；WS 需先 REST 换取 ticket |
 | **CORS** | 仅允许 `localhost` / `127.0.0.1` 来源 |
 
-`web_server.py` 仍保留上游大量 REST 端点（配置、会话列表、指标等），当前 Vue SPA **仅实现 chat-only 界面**；扩展管理页可复用现有 `/api/*` 而无需改动 Agent 核心。
+REST 与管理写操作同样受 loopback token 或 OAuth 门控保护；`apiClient.ts` 在请求头携带 `X-Hermes-Session-Token`。
 
-### 7.6 与已移除 TUI 的关系
+### 7.8 与已移除 TUI 的关系
 
 | 已移除 | 替代 |
 |--------|------|
@@ -489,20 +558,20 @@ Frontmatter 中 `metadata.hermes` 为结构化扩展字段（tags、config 声�
 
 ## 10. 配置与持久化
 
-### 10.1 用户数据目录（`~/.hermes/`）
+### 10.1 用户数据目录（`~/.hermes/`，或 Docker 中 `/data`）
 
 | 路径 | 用途 |
 |------|------|
 | `config.yaml` | 主配置（model、gateway、display、toolsets…） |
 | `.env` | API Key 与密钥 |
-| `state.db` | SQLite 会话与消息（WAL 模式、FTS5 搜索） |
+| `state.db` | SQLite 会话与消息（**本机默认**；设置 `DATABASE_URL` 后不再使用） |
 | `sessions/` | 部分遗留/辅助会话数据 |
 | `skills/`、`plugins/` | 用户扩展 |
 | `cron/jobs.json` | 定时任务定义 |
 | `profiles/<name>/` | 多 Profile 隔离实例 |
 | `logs/` | `agent.log`、`gateway.log`、`tui_gateway_crash.log` 等 |
 
-目录解析：`hermes_constants.get_hermes_home()`，可通过 `HERMES_HOME` 覆盖。
+目录解析：`hermes_constants.get_hermes_home()`，可通过 `HERMES_HOME` 覆盖。Docker Compose 将 `HERMES_HOME=/data` 映射到命名卷 `lenlion-data`。
 
 ### 10.2 配置加载
 
@@ -510,12 +579,60 @@ Frontmatter 中 `metadata.hermes` 为结构化扩展字段（tags、config 声�
 - **Profile**：`lenlion -p <name>` 在 argparse 之前改写 `HERMES_HOME`
 - **Safe Mode**：`lenlion --safe-mode` 跳过用户 config、rules、plugins
 
-### 10.3 会话持久化（`hermes_state.py`）
+### 10.3 双后端持久化（文件 vs Postgres）
+
+当环境变量 **`DATABASE_URL`** 存在时，运行时自动切换 Postgres 后端（Docker Compose 默认启用）：
+
+```mermaid
+flowchart LR
+  subgraph triggers [触发条件]
+    ENV[DATABASE_URL 环境变量]
+  end
+
+  subgraph sessions [会话存储]
+    SDB[SessionDB.__new__]
+    SQLITE[state.db SQLite]
+    PGDB[hermes_state_postgres.PostgresSessionDB]
+  end
+
+  subgraph config_secrets [配置与密钥]
+    CFG[config.py load/save]
+    FILES[config.yaml + .env]
+    PCS[config_store_postgres]
+    TBL[(platform_config<br/>platform_secrets)]
+  end
+
+  ENV --> SDB
+  SDB -->|默认| SQLITE
+  SDB -->|DATABASE_URL| PGDB
+  ENV --> CFG
+  CFG -->|默认| FILES
+  CFG -->|DATABASE_URL| PCS --> TBL
+```
+
+| 数据 | 本机默认 | `DATABASE_URL` 设置后 |
+|------|----------|----------------------|
+| 会话与消息 | `state.db`（SQLite + FTS5） | Postgres `sessions` / `messages` 表 |
+| `config.yaml` | `~/.hermes/config.yaml` | Postgres `platform_config`（按 `profile_id`） |
+| `.env` 密钥 | `~/.hermes/.env` | Postgres `platform_secrets` |
+| 技能、日志、缓存 | 文件系统 | 仍为 `/data` 卷（`HERMES_HOME`） |
+
+实现要点：
+
+- **`hermes_state.py`**：`SessionDB()` 经 `__new__` 委托给 `hermes_state_postgres`；Postgres 不可用时回退 SQLite
+- **`hermes_cli/config_store_postgres.py`**：`load_config` / `save_config` / `load_env` / `save_env_value` 的 Postgres 实现
+- **`docker/postgres/init.sql`**：容器首次启动时建表（schema 与 SQLite 版对齐，另含 `platform_config` / `platform_secrets`）
+- **首次迁移**：DB 为空时，`config.py` 可从现有 `config.yaml` / `.env` 自动导入 Postgres
+
+Web 平台前端保存配置或密钥后，dashboard / gateway 进程通过同一 `config.py` 读取，无需重启即可生效（有进程内缓存时以实际实现为准）。
+
+### 10.4 会话持久化（`hermes_state.py`）
 
 - 替代早期 per-session JSONL 文件
 - 支持 CLI / Web / Gateway 等不同 `source` 标签
 - 压缩后通过 `parent_session_id` 建立会话 lineage
-- Batch / RL 轨迹走独立系统，不入 `state.db`
+- Batch / RL 轨迹走独立系统，不入主会话库
+- Postgres 模式下全文搜索使用 `ILIKE` 回退（无 SQLite FTS5）
 
 ---
 
@@ -534,14 +651,14 @@ Cron 触发的 Agent 子进程通常禁用 `cronjob`、`messaging`、`clarify` �
 
 ## 12. 部署与打包
 
-Lenlion 采用 **本地优先** 部署，同时提供 **Docker 容器** 与本机 **Python 包** 两种运行方式。详见根目录 [DOCKER.md](./DOCKER.md)。
+Lenlion 采用 **本地优先** 部署，同时提供 **Docker 容器** 与本机 **Python 包** 两种运行方式。详见 [lenlion_agent/DOCKER.md](./lenlion_agent/DOCKER.md)。
 
 ### 12.1 分发渠道
 
 | 渠道 | 说明 |
 |------|------|
 | **PyPI** | 包名 `lenlion-agent`；CalVer tag 触发 `.github/workflows/upload_to_pypi.yml` |
-| **Docker** | `lenlion_agent/Dockerfile` + 根目录 `docker-compose.yml`；CI 见 `docker-build.yml` |
+| **Docker** | `lenlion_agent/Dockerfile` + `lenlion_agent/docker-compose.yml`；CI 见 `docker-build.yml` |
 | **Editable 安装** | `pip install -e ".[cli,web,mcp,cron]"` |
 | **install.sh** | `scripts/install.sh` — git clone + venv 一键安装（偏上游 Hermes 风格） |
 
@@ -575,15 +692,18 @@ lenlion gateway run  ──►  独立长期运行进程  ──►  AIAgent →
 ### 12.4 Docker 容器部署
 
 ```
-docker compose (根目录)
+docker compose (lenlion_agent/)
+    ├── postgres   → 会话 + platform_config + platform_secrets
     ├── dashboard  → lenlion dashboard  (:9119 → 127.0.0.1)
     └── gateway    → lenlion gateway run
               │
-              └── 共享卷 /data (= HERMES_HOME)
+              ├── DATABASE_URL → postgres（共享会话与配置）
+              └── lenlion-data 卷 → /data（技能、日志、缓存等文件）
 ```
 
 - 镜像在构建阶段完成 `web/` → `hermes_cli/web_dist/` 与 `uv sync --frozen`
-- 一键脚本：`scripts/deploy-docker.sh`；完整运维见 [DOCKER.md](./DOCKER.md)
+- Python 依赖需 `postgres` extra（`psycopg[binary]`，已编入 Docker 镜像）
+- 一键脚本：`scripts/deploy-docker.sh`；完整运维见 [DOCKER.md](./lenlion_agent/DOCKER.md)
 
 ### 12.5 依赖策略
 
@@ -607,7 +727,7 @@ Python 版本要求：`>=3.11,<3.14`
 | 新 Memory 后端 | `plugins/memory/<backend>/` | config 中选择 backend |
 | 新消息平台 | `gateway/platforms/` 或 `plugins/platforms/` | `ADDING_A_PLATFORM.md` |
 | 新技能 | 目录 + `SKILL.md` 放入 `~/.hermes/skills/` | `tools/skills_tool.py` |
-| Web 聊天 UI | 扩展 `web/src/components/` | `web/src/lib/gatewayClient.ts` |
+| Web 平台 UI | 扩展 `web/src/views/` 或 `components/` | `apiClient.ts` / `gatewayClient.ts` |
 | MCP 服务 | config + `optional-mcps/` 清单 | `hermes_cli/mcp_catalog.py` |
 | 项目规则 | 工作区 `AGENTS.md`、`SOUL.md` | 自动注入 system prompt |
 | 钩子 | Plugin `register_hook` | `VALID_HOOKS` in `plugins.py` |
@@ -625,11 +745,12 @@ Python 版本要求：`>=3.11,<3.14`
 | CLI 命令 | `lenlion`（原 `hermes`） |
 | PyPI 包名 | `lenlion-agent` |
 | 代码位置 | Monorepo 下 `lenlion_agent/` 子目录 |
-| 配置兼容 | 仍使用 `~/.hermes/`，无需迁移用户数据 |
-| Web 界面 | Vue 3 chat-only SPA，替代 Ink TUI + PTY 嵌入 |
+| 配置兼容 | 仍使用 `~/.hermes/`；Docker 下配置/密钥可存 Postgres |
+| Web 界面 | Vue 3 平台 SPA（侧栏 + 12 视图），替代 Ink TUI + PTY 嵌入 |
 | 聊天后端 | 保留 `tui_gateway` JSON-RPC，经 `/api/ws` 暴露 |
+| 持久化 | 本机 SQLite + 文件；Docker 可选 Postgres（`DATABASE_URL`） |
 | 已移除 | TUI、`/api/pty`、上游 s6 Docker/Nix 打包、Desktop App、文档站 |
-| 新增 | 精简 Docker 部署（`Dockerfile` + Compose + `DOCKER.md`） |
+| 新增 | 精简 Docker 部署（`Dockerfile` + Compose + `DOCKER.md` + Postgres） |
 | CI | 根目录 `.github/`，`working-directory: lenlion_agent` |
 
 核心目录（`agent/`、`gateway/`、`tools/`、`plugins/`）可与上游 rsync 增量同步。
@@ -646,6 +767,8 @@ Python 版本要求：`>=3.11,<3.14`
 | Dashboard 服务 | `lenlion_agent/hermes_cli/web_server.py` |
 | Dashboard 启动 | `cmd_dashboard` in `main.py` |
 | Vue 入口 | `lenlion_agent/web/src/App.vue` |
+| 平台导航 | `lenlion_agent/web/src/stores/app.ts` |
+| REST 客户端 | `lenlion_agent/web/src/lib/apiClient.ts` |
 | WS 客户端 | `lenlion_agent/web/src/lib/gatewayClient.ts` |
 | 聊天状态 | `lenlion_agent/web/src/stores/chat.ts` |
 | WS 服务端 | `lenlion_agent/tui_gateway/ws.py` |
@@ -659,9 +782,14 @@ Python 版本要求：`>=3.11,<3.14`
 | 平台基类 | `lenlion_agent/gateway/platforms/base.py` |
 | 插件管理 | `lenlion_agent/hermes_cli/plugins.py` |
 | 配置 | `lenlion_agent/hermes_cli/config.py` |
+| Postgres 配置存储 | `lenlion_agent/hermes_cli/config_store_postgres.py` |
+| 密钥中文说明 | `lenlion_agent/hermes_cli/env_i18n.py` |
 | 常量 / HOME | `lenlion_agent/hermes_constants.py` |
 | 会话 DB | `lenlion_agent/hermes_state.py` |
+| Postgres 会话 DB | `lenlion_agent/hermes_state_postgres.py` |
+| Postgres schema | `lenlion_agent/docker/postgres/init.sql` |
 | Cron 调度 | `lenlion_agent/cron/scheduler.py` |
+| Docker 部署 | `lenlion_agent/DOCKER.md` |
 | 前端构建 | `lenlion_agent/web/vite.config.ts` |
 | 打包 | `lenlion_agent/pyproject.toml` |
 | 迁移范围 | `lenlion_agent/MIGRATION.md` |
@@ -672,6 +800,7 @@ Python 版本要求：`>=3.11,<3.14`
 
 - [README.md](./README.md) — Monorepo 快速开始
 - [lenlion_agent/README.md](./lenlion_agent/README.md) — 安装与使用
+- [lenlion_agent/DOCKER.md](./lenlion_agent/DOCKER.md) — Docker 构建、部署与运维
 - [lenlion_agent/MIGRATION.md](./lenlion_agent/MIGRATION.md) — 迁移与定制记录
 - [lenlion_agent/AGENTS.md](./lenlion_agent/AGENTS.md) — 开发者贡献指南
 - [lenlion_agent/gateway/platforms/ADDING_A_PLATFORM.md](./lenlion_agent/gateway/platforms/ADDING_A_PLATFORM.md) — 新增消息平台

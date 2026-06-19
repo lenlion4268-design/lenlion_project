@@ -44,19 +44,22 @@ npm run build   # 输出到 hermes_cli/web_dist/
 
 ## Docker 部署
 
-容器化运行见 monorepo 根目录 **[DOCKER.md](../DOCKER.md)**：
+容器化运行见 **[DOCKER.md](./DOCKER.md)**：
 
 ```bash
-# 在 lenlion-project/ 根目录
+cd lenlion_agent
 scripts/deploy-docker.sh build && scripts/deploy-docker.sh setup && scripts/deploy-docker.sh up
 ```
 
-或在 `lenlion_agent/` 下直接 `docker compose up -d`。
+或直接 `docker compose up -d`。
 
 ## 目录结构
 
 ```
 lenlion_agent/
+├── DOCKER.md         # Docker 部署文档
+├── Dockerfile
+├── docker-compose.yml
 ├── run_agent.py      # Agent 核心循环
 ├── model_tools.py    # 工具编排
 ├── toolsets.py       # 工具集
@@ -78,6 +81,7 @@ CI 配置位于 monorepo 根目录 `.github/`（`working-directory: lenlion_agen
 
 ## 文档
 
+- [DOCKER.md](./DOCKER.md) — Docker 构建、部署与运维
 - [MIGRATION.md](./MIGRATION.md) — 迁移范围与定制说明
 - [README.hermes-upstream.md](./README.hermes-upstream.md) — 上游 Hermes 完整文档
 - [README.zh-CN.md](./README.zh-CN.md) — 上游中文文档

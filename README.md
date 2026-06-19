@@ -22,12 +22,11 @@ Lenlion Agent 是一个 **本地优先（local-first）** 的可插拔 Agent 运
 lenlion-project/
 ├── .github/              # CI 流水线（working-directory: lenlion_agent）
 ├── ARCHITECTURE.md       # 架构说明
-├── DOCKER.md             # Docker 部署与运维（可执行命令）
-├── docker-compose.yml    # 根目录 Compose 入口（include lenlion_agent/）
-├── scripts/deploy-docker.sh  # 一键 build/setup/up
 └── lenlion_agent/        # Lenlion Agent 主项目（Python 包 lenlion-agent）
+    ├── DOCKER.md         # Docker 部署与运维（可执行命令）
     ├── Dockerfile        # 容器镜像定义
     ├── docker-compose.yml
+    ├── scripts/deploy-docker.sh  # 一键 build/setup/up
     ├── run_agent.py      # Agent 核心循环
     ├── agent/            # 对话循环、上下文、传输层
     ├── tools/            # 工具实现
@@ -93,10 +92,10 @@ display:
 
 ### Docker（推荐用于服务器 / 隔离环境）
 
-完整步骤见 **[DOCKER.md](./DOCKER.md)**。快速开始：
+完整步骤见 **[lenlion_agent/DOCKER.md](./lenlion_agent/DOCKER.md)**。快速开始：
 
 ```bash
-# 在仓库根目录
+cd lenlion_agent
 scripts/deploy-docker.sh build
 scripts/deploy-docker.sh setup    # 首次：配置模型与 API Key
 scripts/deploy-docker.sh up
@@ -117,7 +116,7 @@ open http://127.0.0.1:9119       # Web 聊天（仅本机回环）
 | **Web UI** | Vue 构建产物内嵌于 wheel，由 `lenlion dashboard`（FastAPI + uvicorn）同进程提供静态文件与 `/api/ws` |
 | **默认绑定** | `127.0.0.1:9119`（本机使用）；对外暴露需自行配置反向代理并启用 OAuth 门控 |
 
-相对上游 Hermes 全功能 Docker（s6-overlay / TUI / Playwright），本 fork 提供 **精简版** 容器方案。详见 [DOCKER.md](./DOCKER.md) 与 [lenlion_agent/MIGRATION.md](./lenlion_agent/MIGRATION.md)。
+相对上游 Hermes 全功能 Docker（s6-overlay / TUI / Playwright），本 fork 提供 **精简版** 容器方案。详见 [lenlion_agent/DOCKER.md](./lenlion_agent/DOCKER.md) 与 [lenlion_agent/MIGRATION.md](./lenlion_agent/MIGRATION.md)。
 
 ## 开发与测试
 
@@ -149,7 +148,7 @@ uv run ruff check .
 
 | 文档 | 说明 |
 |------|------|
-| [DOCKER.md](./DOCKER.md) | Docker 构建、部署、运维（可执行命令） |
+| [lenlion_agent/DOCKER.md](./lenlion_agent/DOCKER.md) | Docker 构建、部署、运维（可执行命令） |
 | [lenlion_agent/README.md](./lenlion_agent/README.md) | 安装、使用、目录结构 |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | 架构分层、模块职责、数据流 |
 | [lenlion_agent/MIGRATION.md](./lenlion_agent/MIGRATION.md) | 相对上游 Hermes 的迁移与定制范围 |

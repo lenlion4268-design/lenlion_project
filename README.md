@@ -21,8 +21,8 @@ Lenlion Agent 是一个 **本地优先（local-first）** 的可插拔 Agent 运
 ```
 lenlion-project/
 ├── .github/              # CI 流水线（working-directory: lenlion_agent）
-├── ARCHITECTURE.md       # 架构说明
 └── lenlion_agent/        # Lenlion Agent 主项目（Python 包 lenlion-agent）
+    ├── ARCHITECTURE.md   # 架构说明
     ├── DOCKER.md         # Docker 部署与运维（可执行命令）
     ├── Dockerfile        # 容器镜像定义
     ├── docker-compose.yml
@@ -150,7 +150,7 @@ uv run ruff check .
 |------|------|
 | [lenlion_agent/DOCKER.md](./lenlion_agent/DOCKER.md) | Docker 构建、部署、运维（可执行命令） |
 | [lenlion_agent/README.md](./lenlion_agent/README.md) | 安装、使用、目录结构 |
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | 架构分层、模块职责、数据流 |
+| [lenlion_agent/ARCHITECTURE.md](./lenlion_agent/ARCHITECTURE.md) | 架构分层、模块职责、数据流 |
 | [lenlion_agent/MIGRATION.md](./lenlion_agent/MIGRATION.md) | 相对上游 Hermes 的迁移与定制范围 |
 | [lenlion_agent/README.hermes-upstream.md](./lenlion_agent/README.hermes-upstream.md) | 上游 Hermes 完整文档 |
 | [lenlion_agent/README.zh-CN.md](./lenlion_agent/README.zh-CN.md) | 上游中文文档 |

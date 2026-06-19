@@ -118,7 +118,7 @@ lenlion-project/
 
 **相对上游 Hermes 已移除**：Ink TUI（`ui-tui/`）、PTY 嵌入层（`/api/pty`）、`lenlion --tui`。
 
-**未迁移模块**（见 `lenlion_agent/MIGRATION.md`）：文档站、Electron 桌面端、上游全功能 React Dashboard、Docker/Nix 打包、`acp_adapter/` 等。
+**未迁移模块**（见 `lenlion_agent/MIGRATION.md`）：文档站、Electron 桌面端、上游全功能 React Dashboard、上游 s6-overlay 全功能 Docker/Nix 打包、`acp_adapter/` 等（本 fork 提供精简 Docker，见根目录 `DOCKER.md`）。
 
 ---
 
@@ -534,13 +534,14 @@ Cron 触发的 Agent 子进程通常禁用 `cronjob`、`messaging`、`clarify` �
 
 ## 12. 部署与打包
 
-Lenlion 采用 **本地优先** 部署，无仓库内置的 Docker/K8s 编排。
+Lenlion 采用 **本地优先** 部署，同时提供 **Docker 容器** 与本机 **Python 包** 两种运行方式。详见根目录 [DOCKER.md](./DOCKER.md)。
 
 ### 12.1 分发渠道
 
 | 渠道 | 说明 |
 |------|------|
 | **PyPI** | 包名 `lenlion-agent`；CalVer tag 触发 `.github/workflows/upload_to_pypi.yml` |
+| **Docker** | `lenlion_agent/Dockerfile` + 根目录 `docker-compose.yml`；CI 见 `docker-build.yml` |
 | **Editable 安装** | `pip install -e ".[cli,web,mcp,cron]"` |
 | **install.sh** | `scripts/install.sh` — git clone + venv 一键安装（偏上游 Hermes 风格） |
 
@@ -571,7 +572,20 @@ lenlion gateway run  ──►  独立长期运行进程  ──►  AIAgent →
 
 对外暴露 Dashboard 时：反向代理 + TLS + OAuth 门控；**不建议** `--insecure` 裸绑 `0.0.0.0` 到公网。
 
-### 12.4 依赖策略
+### 12.4 Docker 容器部署
+
+```
+docker compose (根目录)
+    ├── dashboard  → lenlion dashboard  (:9119 → 127.0.0.1)
+    └── gateway    → lenlion gateway run
+              │
+              └── 共享卷 /data (= HERMES_HOME)
+```
+
+- 镜像在构建阶段完成 `web/` → `hermes_cli/web_dist/` 与 `uv sync --frozen`
+- 一键脚本：`scripts/deploy-docker.sh`；完整运维见 [DOCKER.md](./DOCKER.md)
+
+### 12.5 依赖策略
 
 - **包管理**：`uv` + `pyproject.toml` + 精确 pin 的 `uv.lock`
 - **核心依赖**：`openai`、`httpx`、`pydantic`、`prompt_toolkit`、`croniter`、`fastapi` 等
@@ -614,7 +628,8 @@ Python 版本要求：`>=3.11,<3.14`
 | 配置兼容 | 仍使用 `~/.hermes/`，无需迁移用户数据 |
 | Web 界面 | Vue 3 chat-only SPA，替代 Ink TUI + PTY 嵌入 |
 | 聊天后端 | 保留 `tui_gateway` JSON-RPC，经 `/api/ws` 暴露 |
-| 已移除 | TUI、`/api/pty`、Docker/Nix 打包、Desktop App、文档站 |
+| 已移除 | TUI、`/api/pty`、上游 s6 Docker/Nix 打包、Desktop App、文档站 |
+| 新增 | 精简 Docker 部署（`Dockerfile` + Compose + `DOCKER.md`） |
 | CI | 根目录 `.github/`，`working-directory: lenlion_agent` |
 
 核心目录（`agent/`、`gateway/`、`tools/`、`plugins/`）可与上游 rsync 增量同步。

@@ -42,6 +42,17 @@ npm run build   # 输出到 hermes_cli/web_dist/
 
 配置与数据目录仍为 `~/.hermes/`（与上游 Hermes 兼容）。
 
+## Docker 部署
+
+容器化运行见 monorepo 根目录 **[DOCKER.md](../DOCKER.md)**：
+
+```bash
+# 在 lenlion-project/ 根目录
+scripts/deploy-docker.sh build && scripts/deploy-docker.sh setup && scripts/deploy-docker.sh up
+```
+
+或在 `lenlion_agent/` 下直接 `docker compose up -d`。
+
 ## 目录结构
 
 ```

@@ -236,6 +236,18 @@ _RAW_CONFIG_CACHE: Dict[str, Tuple[int, int, Dict[str, Any]]] = {}
 # calls read_raw_config. Also covers mutation of the module-level cache
 # dicts above.
 _CONFIG_LOCK = threading.RLock()
+
+
+def postgres_store_enabled() -> bool:
+    """True when DATABASE_URL is set and config/secrets use Postgres."""
+    try:
+        from hermes_cli.config_store_postgres import postgres_store_enabled as _enabled
+
+        return _enabled()
+    except Exception:
+        return False
+
+
 # Env var names written to .env that aren't in OPTIONAL_ENV_VARS
 # (managed by setup/provider flows directly).
 _EXTRA_ENV_KEYS = frozenset({
@@ -5373,6 +5385,29 @@ def read_raw_config() -> Dict[str, Any]:
     mutate the result before passing to ``save_config()``.
     """
     with _CONFIG_LOCK:
+        if postgres_store_enabled():
+            from hermes_cli.config_store_postgres import (
+                load_raw_config_from_db,
+                migrate_file_config_to_db_if_empty,
+            )
+
+            raw, _ = load_raw_config_from_db()
+            if raw is not None:
+                return copy.deepcopy(raw)
+            config_path = get_config_path()
+            if config_path.exists():
+                try:
+                    with open(config_path, encoding="utf-8") as f:
+                        file_raw = yaml.safe_load(f) or {}
+                    if isinstance(file_raw, dict) and file_raw:
+                        migrate_file_config_to_db_if_empty(file_raw)
+                        raw, _ = load_raw_config_from_db()
+                        if raw is not None:
+                            return copy.deepcopy(raw)
+                except Exception as e:
+                    _warn_config_parse_failure(config_path, e)
+            return {}
+
         try:
             config_path = get_config_path()
             st = config_path.stat()
@@ -5532,11 +5567,35 @@ def _load_config_impl(*, want_deepcopy: bool) -> Dict[str, Any]:
         config_path = get_config_path()
         path_key = str(config_path)
 
-        try:
-            st = config_path.stat()
-            cache_key: Optional[Tuple[int, int]] = (st.st_mtime_ns, st.st_size)
-        except FileNotFoundError:
-            cache_key = None
+        cache_key: Optional[Tuple[int, int]] = None
+        user_config: Optional[Dict[str, Any]] = None
+
+        if postgres_store_enabled():
+            from hermes_cli.config_store_postgres import (
+                _config_cache_key,
+                load_raw_config_from_db,
+                migrate_file_config_to_db_if_empty,
+            )
+
+            raw_db, updated_at = load_raw_config_from_db()
+            if raw_db is None and config_path.exists():
+                try:
+                    with open(config_path, encoding="utf-8") as f:
+                        file_raw = yaml.safe_load(f) or {}
+                    if isinstance(file_raw, dict) and file_raw:
+                        migrate_file_config_to_db_if_empty(file_raw)
+                        raw_db, updated_at = load_raw_config_from_db()
+                except Exception as e:
+                    _warn_config_parse_failure(config_path, e)
+            if raw_db is not None and updated_at is not None:
+                cache_key = _config_cache_key(updated_at)
+                user_config = raw_db
+        else:
+            try:
+                st = config_path.stat()
+                cache_key = (st.st_mtime_ns, st.st_size)
+            except FileNotFoundError:
+                cache_key = None
 
         cached = _LOAD_CONFIG_CACHE.get(path_key)
         if cached is not None and cache_key is not None and cached[:2] == cache_key:
@@ -5544,19 +5603,28 @@ def _load_config_impl(*, want_deepcopy: bool) -> Dict[str, Any]:
 
         config = copy.deepcopy(DEFAULT_CONFIG)
 
-        if cache_key is not None:
+        if user_config is not None:
+            merged = dict(user_config)
+            if "max_turns" in merged:
+                agent_user_config = dict(merged.get("agent") or {})
+                if agent_user_config.get("max_turns") is None:
+                    agent_user_config["max_turns"] = merged["max_turns"]
+                merged["agent"] = agent_user_config
+                merged.pop("max_turns", None)
+            config = _deep_merge(config, merged)
+        elif cache_key is not None:
             try:
                 with open(config_path, encoding="utf-8") as f:
-                    user_config = yaml.safe_load(f) or {}
+                    file_user_config = yaml.safe_load(f) or {}
 
-                if "max_turns" in user_config:
-                    agent_user_config = dict(user_config.get("agent") or {})
+                if "max_turns" in file_user_config:
+                    agent_user_config = dict(file_user_config.get("agent") or {})
                     if agent_user_config.get("max_turns") is None:
-                        agent_user_config["max_turns"] = user_config["max_turns"]
-                    user_config["agent"] = agent_user_config
-                    user_config.pop("max_turns", None)
+                        agent_user_config["max_turns"] = file_user_config["max_turns"]
+                    file_user_config["agent"] = agent_user_config
+                    file_user_config.pop("max_turns", None)
 
-                config = _deep_merge(config, user_config)
+                config = _deep_merge(config, file_user_config)
             except Exception as e:
                 _warn_config_parse_failure(config_path, e)
 
@@ -5564,24 +5632,12 @@ def _load_config_impl(*, want_deepcopy: bool) -> Dict[str, Any]:
         expanded = _expand_env_vars(normalized)
         _LAST_EXPANDED_CONFIG_BY_PATH[path_key] = copy.deepcopy(expanded)
         if cache_key is not None:
-            # Cache stores a separate deepcopy so subsequent ``load_config()``
-            # (deepcopy=True) callers can mutate freely without affecting the
-            # cached value, and ``load_config_readonly()`` (deepcopy=False)
-            # callers all see the same stable cached object.
             cached_copy = copy.deepcopy(expanded)
             _LOAD_CONFIG_CACHE[path_key] = (cache_key[0], cache_key[1], cached_copy)
-            # On the readonly path return the same cached object subsequent
-            # calls will see — keeps "two readonly calls return the same
-            # object" invariant that callers may rely on for identity checks.
             if not want_deepcopy:
                 return cached_copy
         else:
             _LOAD_CONFIG_CACHE.pop(path_key, None)
-        # First-load result is a fresh dict (not aliased to the cache); safe
-        # to return directly. For the deepcopy=True path this is the
-        # canonical "freshly-built mutable result" the function has always
-        # returned. For the deepcopy=False path with no cache (e.g. config
-        # file missing), it's also fine — callers get an isolated object.
         return expanded
 
 
@@ -5695,6 +5751,23 @@ def save_config(config: Dict[str, Any]):
         if not fb_is_valid:
             parts.append(_FALLBACK_COMMENT)
 
+        if postgres_store_enabled():
+            from hermes_cli.config_store_postgres import (
+                _config_cache_key,
+                save_raw_config_to_db,
+            )
+
+            updated_at = save_raw_config_to_db(normalized)
+            _LAST_EXPANDED_CONFIG_BY_PATH[str(config_path)] = copy.deepcopy(current_normalized)
+            expanded = _expand_env_vars(normalized)
+            cache_key = _config_cache_key(updated_at)
+            _LOAD_CONFIG_CACHE[str(config_path)] = (
+                cache_key[0],
+                cache_key[1],
+                copy.deepcopy(expanded),
+            )
+            return
+
         atomic_yaml_write(
             config_path,
             normalized,
@@ -5705,22 +5778,34 @@ def save_config(config: Dict[str, Any]):
 
 
 def load_env() -> Dict[str, str]:
-    """Load environment variables from ~/.hermes/.env.
-
-    Sanitizes lines before parsing so that corrupted files (e.g.
-    concatenated KEY=VALUE pairs on a single line) are handled
-    gracefully instead of producing mangled values such as duplicated
-    bot tokens.  See #8908.
-
-    The parsed dict is memoised keyed on the .env file mtime, because
-    ``get_env_value()`` is called dozens-to-hundreds of times per
-    interactive menu render (`lenlion tools`, `lenlion setup`, status
-    panels). Sanitisation is O(lines × known-keys), so re-parsing the
-    same file on every call was burning ~300ms of CPU per `lenlion tools`
-    menu paint on top of the OAuth-refresh slowness. The mtime check
-    invalidates the cache when the user edits .env mid-process.
-    """
+    """Load environment variables from Postgres (DATABASE_URL) or ~/.hermes/.env."""
     global _env_cache
+
+    if postgres_store_enabled():
+        from hermes_cli.config_store_postgres import (
+            env_db_cache_key,
+            load_secrets_from_db,
+            migrate_file_secrets_to_db_if_empty,
+        )
+
+        profile_id, updated_at, count = env_db_cache_key()
+        cache_key = (f"pg:{profile_id}", updated_at, count)
+        if _env_cache is not None:
+            cached_key, cached_vars = _env_cache
+            if cached_key == cache_key:
+                return dict(cached_vars)
+
+        env_vars = load_secrets_from_db()
+        if not env_vars:
+            env_path = get_env_path()
+            if env_path.exists():
+                file_vars = _load_env_from_file(env_path)
+                if file_vars:
+                    migrate_file_secrets_to_db_if_empty(file_vars)
+                    env_vars = load_secrets_from_db()
+        _env_cache = (cache_key, dict(env_vars))
+        return dict(env_vars)
+
     env_path = get_env_path()
 
     try:
@@ -5740,20 +5825,7 @@ def load_env() -> Dict[str, str]:
     env_vars: Dict[str, str] = {}
 
     if env_path.exists():
-        # On Windows, open() defaults to the system locale (cp1252) which can
-        # fail on UTF-8 .env files. Always use explicit UTF-8; tolerate BOM
-        # via utf-8-sig since users may edit .env in Notepad which adds one.
-        open_kw = {"encoding": "utf-8-sig", "errors": "replace"}
-        with open(env_path, **open_kw) as f:
-            raw_lines = f.readlines()
-        # Sanitize before parsing: split concatenated lines & drop stale
-        # placeholders so corrupted .env files don't produce invalid tokens.
-        lines = _sanitize_env_lines(raw_lines)
-        for line in lines:
-            line = line.strip()
-            if line and not line.startswith('#') and '=' in line:
-                key, _, value = line.partition('=')
-                env_vars[key.strip()] = value.strip().strip('"\'')
+        env_vars = _load_env_from_file(env_path)
 
     if cache_key is not None:
         _env_cache = (cache_key, dict(env_vars))
@@ -5761,12 +5833,22 @@ def load_env() -> Dict[str, str]:
     return env_vars
 
 
-# Module-level memo for load_env(), keyed on (path, mtime, size).
-# Editing .env bumps mtime → next load_env() rebuilds. invalidate_env_cache()
-# is the explicit knob for writers that update .env via this module
-# (set_env_value, save_env, etc.) without relying on filesystem mtime
-# resolution.
-_env_cache: Optional[Tuple[Tuple[str, Optional[float], Optional[int]], Dict[str, str]]] = None
+def _load_env_from_file(env_path: Path) -> Dict[str, str]:
+    """Parse a .env file from disk."""
+    env_vars: Dict[str, str] = {}
+    open_kw = {"encoding": "utf-8-sig", "errors": "replace"}
+    with open(env_path, **open_kw) as f:
+        raw_lines = f.readlines()
+    lines = _sanitize_env_lines(raw_lines)
+    for line in lines:
+        line = line.strip()
+        if line and not line.startswith('#') and '=' in line:
+            key, _, value = line.partition('=')
+            env_vars[key.strip()] = value.strip().strip('"\'' )
+    return env_vars
+
+
+_env_cache: Optional[Tuple[Any, Dict[str, str]]] = None
 
 
 def invalidate_env_cache() -> None:
@@ -5939,6 +6021,15 @@ def save_env_value(key: str, value: str):
     # API keys / tokens must be ASCII — strip non-ASCII with a warning.
     value = _check_non_ascii_credential(key, value)
     ensure_hermes_home()
+
+    if postgres_store_enabled():
+        from hermes_cli.config_store_postgres import save_secret_to_db
+
+        save_secret_to_db(key, value)
+        os.environ[key] = value
+        invalidate_env_cache()
+        return
+
     env_path = get_env_path()
 
     # On Windows, open() defaults to the system locale (cp1252) which can
@@ -6011,6 +6102,13 @@ def remove_env_value(key: str) -> bool:
         return False
     if not _ENV_VAR_NAME_RE.match(key):
         raise ValueError(f"Invalid environment variable name: {key!r}")
+    if postgres_store_enabled():
+        from hermes_cli.config_store_postgres import delete_secret_from_db
+
+        found = delete_secret_from_db(key)
+        os.environ.pop(key, None)
+        invalidate_env_cache()
+        return found
     env_path = get_env_path()
     if not env_path.exists():
         os.environ.pop(key, None)

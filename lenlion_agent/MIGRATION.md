@@ -44,7 +44,7 @@
 | 上游 React `web/` 全功能 Dashboard | 本仓库仅实现 chat-only Vue SPA |
 | `optional-skills/` | 可选重型技能包 |
 | `acp_adapter/` | VS Code / Zed ACP 集成 |
-| `docker/` / `nix/` | 容器与 Nix 打包 |
+| `docker/` / `nix/` | 上游 s6-overlay 容器与 Nix 打包（本 fork 提供精简 Docker，见根目录 `DOCKER.md`） |
 | `docs/` / `plans/` | 内部文档与计划 |
 
 如需上述模块，可从源仓库单独复制或 submodule 引入。
@@ -79,6 +79,7 @@ cd web && npm install && npm run build
 4. ✅ 入口文档改为 [README.md](./README.md)
 5. ✅ skills、locales、插件文档与代码内用户提示中的 CLI 命令已统一为 `lenlion`
 6. ✅ 移除 Ink TUI，新增 Vue 3 Web Chat（`/api/ws` + `tui_gateway`）
+7. ✅ 新增精简 Docker 部署（`lenlion_agent/Dockerfile`、Compose、根目录 [DOCKER.md](../DOCKER.md) 与 `scripts/deploy-docker.sh`）
 
 ## 后续定制建议
 

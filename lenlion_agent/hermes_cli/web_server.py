@@ -64,6 +64,7 @@ from hermes_cli.config import (
     recommended_update_command_for_method,
     redact_key,
 )
+from hermes_cli.env_i18n import localize_env_description
 from gateway.status import (
     get_running_pid,
     get_runtime_status_running_pid,
@@ -3709,17 +3710,22 @@ async def update_config(body: ConfigUpdate, profile: Optional[str] = None):
 
 
 @app.get("/api/env")
-async def get_env_vars(profile: Optional[str] = None):
+async def get_env_vars(profile: Optional[str] = None, lang: Optional[str] = None):
     with _profile_scope(profile):
         env_on_disk = load_env()
+        cfg = load_config()
+    display_lang = lang or (cfg.get("display") or {}).get("language") or "zh"
     channel_keys = _channel_managed_env_keys()
     result = {}
     for var_name, info in OPTIONAL_ENV_VARS.items():
         value = env_on_disk.get(var_name)
+        english_desc = info.get("description", "")
         result[var_name] = {
             "is_set": bool(value),
             "redacted_value": redact_key(value) if value else None,
-            "description": info.get("description", ""),
+            "description": localize_env_description(
+                var_name, english_desc, lang=display_lang,
+            ),
             "url": info.get("url"),
             "category": info.get("category", ""),
             "is_password": info.get("password", False),

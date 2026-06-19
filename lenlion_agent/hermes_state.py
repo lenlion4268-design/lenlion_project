@@ -660,7 +660,24 @@ class SessionDB:
 
     Thread-safe for the common gateway pattern (multiple reader threads,
     single writer via WAL mode). Each method opens its own cursor.
+
+    When ``DATABASE_URL`` is set, ``SessionDB()`` returns a PostgreSQL-backed
+    implementation instead (see ``hermes_state_postgres``).
     """
+
+    def __new__(cls, db_path: Path = None, read_only: bool = False):
+        if cls is SessionDB:
+            try:
+                from hermes_state_postgres import build_postgres_session_db, should_use_postgres
+
+                if should_use_postgres(db_path, read_only):
+                    return build_postgres_session_db()
+            except Exception as exc:
+                logger.warning(
+                    "Postgres session backend unavailable (%s); falling back to SQLite",
+                    exc,
+                )
+        return super().__new__(cls)
 
     # ── Write-contention tuning ──
     # With multiple lenlion processes (gateway + CLI sessions + worktree agents)

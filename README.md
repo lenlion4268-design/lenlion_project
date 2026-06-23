@@ -5,7 +5,7 @@ Lenlion 工作区 monorepo，包含：
 - **Lenlion Agent**（`lenlion_agent/`）—— 基于 [Hermes Agent](https://github.com/NousResearch/hermes-agent) 的本地优先 AI Agent 运行时
 - **Lenlion Platform**（`lenlion_platform/`）—— 云端控制平面与模型网关（Phase 1 已完成：包骨架、DB 边界、健康检查）
 
-Lenlion Agent 是一个 **本地优先（local-first）** 的可插拔 Agent 运行时：终端 CLI、浏览器 Web 聊天、多平台消息网关与定时任务共用同一套 Agent 核心，通过工具、技能与插件扩展能力。Platform 负责 enrollment、租约、模型网关强制与集中审计（Phase 2+ 进行中）。
+Lenlion Agent 是一个 **本地优先（local-first）** 的可插拔 Agent 运行时：在本机运行 CLI、Web Chat、Gateway 与 Cron，会话与配置通过 **`DATABASE_URL` 写入云端 Postgres**。Platform 负责控制平面、模型网关与数据库托管（Phase 2+ 进行中）。
 
 ## 能力概览
 
@@ -24,13 +24,10 @@ Lenlion Agent 是一个 **本地优先（local-first）** 的可插拔 Agent 运
 ```
 lenlion-project/
 ├── .github/              # CI 流水线
-├── lenlion_agent/        # Lenlion Agent 主项目（Python 包 lenlion-agent）
+├── lenlion_agent/        # Lenlion Agent 主项目（Python 包 lenlion-agent，本机运行）
 │   ├── ARCHITECTURE.md   # 架构说明
-│   ├── DOCKER.md         # Docker 部署与运维（可执行命令）
-│   ├── Dockerfile
-│   ├── docker-compose.yml
-│   ├── docker/postgres/  # Agent 会话 / 配置 Postgres schema
-│   ├── scripts/deploy-docker.sh
+│   ├── DEPLOYMENT.md     # 本地部署 + 云端 DATABASE_URL
+│   ├── docker/postgres/  # Agent 会话 / 配置 schema（应用到云端库）
 │   ├── run_agent.py      # Agent 核心循环
 │   ├── agent/            # 对话循环、上下文、传输层
 │   ├── tools/            # 工具实现
@@ -55,7 +52,7 @@ lenlion-project/
 - **Python** 3.11 – 3.13（见 `lenlion_agent/pyproject.toml`）
 - **Node.js / npm** — 仅在前端开发或重新构建 Web UI 时需要
 
-配置与数据目录沿用 Hermes 约定：`~/.hermes/`（`config.yaml`、`.env`、`state.db` 等）。
+配置与数据目录沿用 Hermes 约定：`~/.hermes/`（技能、日志、缓存等本地文件）。设置 **`DATABASE_URL`** 后会话、Web 配置与密钥存入云端 Postgres。
 
 ## 快速开始
 
@@ -65,7 +62,8 @@ cd lenlion_agent
 python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 
-pip install -e ".[cli,web,mcp,cron]"
+pip install -e ".[cli,web,mcp,cron,postgres]"
+# 在 ~/.hermes/.env 中设置 DATABASE_URL（云端 Postgres）
 lenlion setup
 
 lenlion              # 终端 CLI
@@ -73,7 +71,7 @@ lenlion dashboard    # Web 聊天界面
 lenlion doctor       # 检查环境
 ```
 
-首次使用需在 `~/.hermes/.env` 或 `config.yaml` 中配置模型 API Key（如 OpenAI、Anthropic 等）。详见 [lenlion_agent/README.md](./lenlion_agent/README.md)。
+云端数据库准备见 **[lenlion_agent/DEPLOYMENT.md](./lenlion_agent/DEPLOYMENT.md)**。首次使用需在 `~/.hermes/.env` 或 Web 配置页中配置 `DATABASE_URL` 与模型 API Key。详见 [lenlion_agent/README.md](./lenlion_agent/README.md)。
 
 ### 构建 Web 前端
 
@@ -98,35 +96,32 @@ display:
 
 ## 部署方式
 
-支持 **Docker 容器部署** 与 **本机 Python 包** 两种方式。
+**Agent 在本机运行，数据在云端 Postgres。**
 
-### Docker（推荐用于服务器 / 隔离环境）
+| 组件 | 部署位置 | 说明 |
+|------|----------|------|
+| **Lenlion Agent** | 本机 Python 包 | `pip install -e ".[cli,web,mcp,cron,postgres]"` |
+| **Postgres** | 云端（Platform 或托管） | 会话、配置、密钥 + 平台控制表 |
+| **Lenlion Platform** | 云端 Docker Compose | control-plane、model-gateway（见 `lenlion_platform/`） |
 
-完整步骤见 **[lenlion_agent/DOCKER.md](./lenlion_agent/DOCKER.md)**。快速开始：
+完整步骤见 **[lenlion_agent/DEPLOYMENT.md](./lenlion_agent/DEPLOYMENT.md)**。
 
 ```bash
+# 1. 云端：启动 Platform Postgres（或连接托管库）
+cd lenlion_platform && docker compose up -d postgres
+
+# 2. 本机：安装 Agent 并配置 DATABASE_URL
 cd lenlion_agent
-scripts/deploy-docker.sh build
-scripts/deploy-docker.sh setup    # 首次：配置模型与 API Key
-scripts/deploy-docker.sh up
-
-open http://127.0.0.1:9119       # Web 聊天（仅本机回环）
+pip install -e ".[cli,web,mcp,cron,postgres]"
+# ~/.hermes/.env → DATABASE_URL=postgresql://...
+lenlion setup && lenlion dashboard
 ```
-
-等价的 compose 命令：`docker compose build` → `docker compose run --rm dashboard lenlion setup` → `docker compose up -d`。
-
-镜像内包含 Web UI 构建产物；`dashboard` 与 `gateway` 共享 `/data` 卷（即 `HERMES_HOME` / `~/.hermes` 约定）。
-
-### 本机 Python 包
 
 | 层级 | 方式 |
 |------|------|
-| **分发** | PyPI 包 `lenlion-agent`；打 CalVer tag（`v20*.*.*`）时由 GitHub Actions 发布 |
-| **本地开发** | `pip install -e ".[cli,web,mcp,cron]"` |
-| **Web UI** | Vue 构建产物内嵌于 wheel，由 `lenlion dashboard`（FastAPI + uvicorn）同进程提供静态文件与 `/api/ws` |
-| **默认绑定** | `127.0.0.1:9119`（本机使用）；对外暴露需自行配置反向代理并启用 OAuth 门控 |
-
-相对上游 Hermes 全功能 Docker（s6-overlay / TUI / Playwright），本 fork 提供 **精简版** 容器方案。详见 [lenlion_agent/DOCKER.md](./lenlion_agent/DOCKER.md) 与 [lenlion_agent/MIGRATION.md](./lenlion_agent/MIGRATION.md)。
+| **分发** | PyPI 包 `lenlion-agent`；CalVer tag 触发 PyPI 发布 |
+| **Web UI** | Vue 构建产物内嵌于 wheel，由 `lenlion dashboard` 提供 |
+| **默认绑定** | `127.0.0.1:9119`；远程访问请用 SSH 隧道或反向代理 + OAuth |
 
 ## 开发与测试
 
@@ -168,14 +163,14 @@ curl http://127.0.0.1:8080/healthz
 - **lint.yml** — Ruff / 格式检查
 - **upload_to_pypi.yml** — CalVer tag 触发 PyPI 发布
 - **uv-lockfile-check.yml** — 锁文件一致性
-- **docker-build.yml** — Docker 镜像构建与冒烟测试
+- **docker-build.yml** — Agent 镜像 CI 冒烟（非部署路径）
 - **osv-scanner.yml** / **supply-chain-audit.yml** — 供应链安全扫描
 
 ## 文档
 
 | 文档 | 说明 |
 |------|------|
-| [lenlion_agent/DOCKER.md](./lenlion_agent/DOCKER.md) | Docker 构建、部署、运维（可执行命令） |
+| [lenlion_agent/DEPLOYMENT.md](./lenlion_agent/DEPLOYMENT.md) | 本机 Agent + 云端 DATABASE_URL |
 | [lenlion_agent/README.md](./lenlion_agent/README.md) | 安装、使用、目录结构 |
 | [lenlion_agent/ARCHITECTURE.md](./lenlion_agent/ARCHITECTURE.md) | 架构分层、模块职责、数据流 |
 | [lenlion_platform/README.md](./lenlion_platform/README.md) | 平台包说明、DB 边界、本地开发与 Compose |

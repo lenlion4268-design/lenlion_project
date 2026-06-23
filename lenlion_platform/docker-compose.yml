@@ -1,5 +1,10 @@
 name: lenlion-platform
 
+# Cloud stack: Postgres + control-plane + model-gateway.
+# Lenlion Agent runs locally on user machines; point DATABASE_URL at this Postgres.
+# After first postgres start, also apply agent schema (once per database):
+#   psql "$DATABASE_URL" -f ../lenlion_agent/docker/postgres/init.sql
+
 services:
   postgres:
     image: pgvector/pgvector:pg16

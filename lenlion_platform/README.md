@@ -6,6 +6,15 @@ Cloud control plane and model gateway for the Lenlion agent runtime.
 boundary, health checks, and Docker Compose bootstrap. Auth, leases, enrollment,
 and gateway enforcement land in Phase 2+.
 
+**Deployment:** Platform services run in Docker (this compose file). **Lenlion Agent
+runs on the developer/user machine** and connects to the cloud Postgres via
+`DATABASE_URL`. Apply agent schema separately:
+
+```bash
+psql "$DATABASE_URL" -f ../lenlion_agent/docker/postgres/init.sql
+psql "$DATABASE_URL" -f db/init.sql
+```
+
 ## Database boundary
 
 **Decision: same Postgres instance, same database, co-located tables.**

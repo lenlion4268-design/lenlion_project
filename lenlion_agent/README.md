@@ -2,6 +2,8 @@
 
 基于 [Hermes Agent](https://github.com/NousResearch/hermes-agent) 核心运行时的独立 AI Agent 项目。
 
+**部署模型：** 在本机运行 Agent（CLI / Web / Gateway），通过 `DATABASE_URL` 连接**云端 Postgres** 存储会话、配置与密钥。不再提供 Agent 容器化部署。
+
 ## 能力概览
 
 - **CLI** — 终端交互式 Agent（prompt_toolkit）
@@ -16,9 +18,17 @@
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e ".[cli,web,mcp,cron]"
+pip install -e ".[cli,web,mcp,cron,postgres]"
 lenlion setup
 ```
+
+在 `~/.hermes/.env` 中配置云端数据库：
+
+```bash
+DATABASE_URL=postgresql://user:pass@your-cloud-host:5432/lenlion?sslmode=require
+```
+
+Schema 初始化与 Platform 联调见 **[DEPLOYMENT.md](./DEPLOYMENT.md)**。
 
 ## 使用
 
@@ -40,26 +50,15 @@ npm run build   # 输出到 hermes_cli/web_dist/
 
 `lenlion dashboard` 会在 dist 过期时自动尝试构建（需本机安装 Node.js/npm）。
 
-配置与数据目录仍为 `~/.hermes/`（与上游 Hermes 兼容）。
-
-## Docker 部署
-
-容器化运行见 **[DOCKER.md](./DOCKER.md)**：
-
-```bash
-cd lenlion_agent
-scripts/deploy-docker.sh build && scripts/deploy-docker.sh setup && scripts/deploy-docker.sh up
-```
-
-或直接 `docker compose up -d`。
+- **本地文件：** `~/.hermes/` — 技能、日志、缓存
+- **云端 Postgres（`DATABASE_URL`）：** 会话、消息、Web 配置、密钥
 
 ## 目录结构
 
 ```
 lenlion_agent/
-├── DOCKER.md         # Docker 部署文档
-├── Dockerfile
-├── docker-compose.yml
+├── DEPLOYMENT.md     # 本地部署 + 云端数据库（主文档）
+├── docker/postgres/  # Agent schema（应用到云端库）
 ├── run_agent.py      # Agent 核心循环
 ├── model_tools.py    # 工具编排
 ├── toolsets.py       # 工具集
@@ -81,7 +80,8 @@ CI 配置位于 monorepo 根目录 `.github/`（`working-directory: lenlion_agen
 
 ## 文档
 
-- [DOCKER.md](./DOCKER.md) — Docker 构建、部署与运维
+- [DEPLOYMENT.md](./DEPLOYMENT.md) — 本机运行 + 云端 `DATABASE_URL`
+- [ARCHITECTURE.md](./ARCHITECTURE.md) — 架构与 Postgres 双后端
 - [MIGRATION.md](./MIGRATION.md) — 迁移范围与定制说明
 - [README.hermes-upstream.md](./README.hermes-upstream.md) — 上游 Hermes 完整文档
 - [README.zh-CN.md](./README.zh-CN.md) — 上游中文文档

@@ -1,8 +1,11 @@
 # lenlion-project
 
-Lenlion 工作区 monorepo，当前包含 **Lenlion Agent** —— 基于 [Hermes Agent](https://github.com/NousResearch/hermes-agent) 核心运行时的独立 AI Agent 项目。
+Lenlion 工作区 monorepo，包含：
 
-Lenlion Agent 是一个 **本地优先（local-first）** 的可插拔 Agent 运行时：终端 CLI、浏览器 Web 聊天、多平台消息网关与定时任务共用同一套 Agent 核心，通过工具、技能与插件扩展能力。
+- **Lenlion Agent**（`lenlion_agent/`）—— 基于 [Hermes Agent](https://github.com/NousResearch/hermes-agent) 的本地优先 AI Agent 运行时
+- **Lenlion Platform**（`lenlion_platform/`）—— 云端控制平面与模型网关（Phase 1 已完成：包骨架、DB 边界、健康检查）
+
+Lenlion Agent 是一个 **本地优先（local-first）** 的可插拔 Agent 运行时：终端 CLI、浏览器 Web 聊天、多平台消息网关与定时任务共用同一套 Agent 核心，通过工具、技能与插件扩展能力。Platform 负责 enrollment、租约、模型网关强制与集中审计（Phase 2+ 进行中）。
 
 ## 能力概览
 
@@ -20,24 +23,31 @@ Lenlion Agent 是一个 **本地优先（local-first）** 的可插拔 Agent 运
 
 ```
 lenlion-project/
-├── .github/              # CI 流水线（working-directory: lenlion_agent）
-└── lenlion_agent/        # Lenlion Agent 主项目（Python 包 lenlion-agent）
-    ├── ARCHITECTURE.md   # 架构说明
-    ├── DOCKER.md         # Docker 部署与运维（可执行命令）
-    ├── Dockerfile        # 容器镜像定义
+├── .github/              # CI 流水线
+├── lenlion_agent/        # Lenlion Agent 主项目（Python 包 lenlion-agent）
+│   ├── ARCHITECTURE.md   # 架构说明
+│   ├── DOCKER.md         # Docker 部署与运维（可执行命令）
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   ├── docker/postgres/  # Agent 会话 / 配置 Postgres schema
+│   ├── scripts/deploy-docker.sh
+│   ├── run_agent.py      # Agent 核心循环
+│   ├── agent/            # 对话循环、上下文、传输层
+│   ├── tools/            # 工具实现
+│   ├── hermes_cli/       # CLI 子命令 + FastAPI Web 服务
+│   ├── gateway/          # 消息网关
+│   ├── web/              # Vue 3 聊天前端（构建到 hermes_cli/web_dist/）
+│   ├── tui_gateway/      # WebSocket JSON-RPC 聊天后端引擎
+│   ├── cron/             # 调度器
+│   ├── plugins/          # 内置插件
+│   ├── skills/           # 内置技能
+│   └── tests/            # 测试
+└── lenlion_platform/     # 云端控制平面（Python 包 lenlion-platform）
+    ├── control_plane/    # enrollment / lease / approval API（Phase 2+）
+    ├── model_gateway/    # OpenAI 兼容模型网关（Phase 2+）
+    ├── db/init.sql       # 平台控制表（与 agent 表同库共存）
     ├── docker-compose.yml
-    ├── scripts/deploy-docker.sh  # 一键 build/setup/up
-    ├── run_agent.py      # Agent 核心循环
-    ├── agent/            # 对话循环、上下文、传输层
-    ├── tools/            # 工具实现
-    ├── hermes_cli/       # CLI 子命令 + FastAPI Web 服务
-    ├── gateway/          # 消息网关
-    ├── web/              # Vue 3 聊天前端（构建到 hermes_cli/web_dist/）
-    ├── tui_gateway/      # WebSocket JSON-RPC 聊天后端引擎
-    ├── cron/             # 调度器
-    ├── plugins/          # 内置插件
-    ├── skills/           # 内置技能
-    └── tests/            # 测试
+    └── tests/
 ```
 
 ## 环境要求
@@ -120,7 +130,9 @@ open http://127.0.0.1:9119       # Web 聊天（仅本机回环）
 
 ## 开发与测试
 
-所有命令均在 `lenlion_agent/` 目录下执行（CI 亦如此）：
+### Agent（`lenlion_agent/`）
+
+所有 Agent 命令与 CI 均在 `lenlion_agent/` 下执行：
 
 ```bash
 cd lenlion_agent
@@ -132,6 +144,21 @@ uv run pytest
 # 代码检查
 uv run ruff check .
 ```
+
+### Platform（`lenlion_platform/`）
+
+Phase 1 提供 health 端点与 schema 契约；auth / lease / gateway 强制在 Phase 2+ 实现。
+
+```bash
+cd lenlion_platform
+uv lock          # 首次或依赖变更后
+uv run pytest -q
+docker compose config
+docker compose up -d   # postgres :5432, control-plane :8080, model-gateway :8081
+curl http://127.0.0.1:8080/healthz
+```
+
+平台与 Agent 共用同一 Postgres 实例时，Agent 表由 `lenlion_agent/docker/postgres/init.sql` 初始化，平台表由 `lenlion_platform/db/init.sql` 追加；迁移标记分别为 `schema_version` 与 `platform_schema_version`。详见 [lenlion_platform/README.md](./lenlion_platform/README.md)。
 
 ## CI
 
@@ -151,6 +178,8 @@ uv run ruff check .
 | [lenlion_agent/DOCKER.md](./lenlion_agent/DOCKER.md) | Docker 构建、部署、运维（可执行命令） |
 | [lenlion_agent/README.md](./lenlion_agent/README.md) | 安装、使用、目录结构 |
 | [lenlion_agent/ARCHITECTURE.md](./lenlion_agent/ARCHITECTURE.md) | 架构分层、模块职责、数据流 |
+| [lenlion_platform/README.md](./lenlion_platform/README.md) | 平台包说明、DB 边界、本地开发与 Compose |
+| [docs/PLATFORM_EXECUTION_PLAN.md](./docs/PLATFORM_EXECUTION_PLAN.md) | 平台实施总规格（Phase 2+ 执行入口） |
 | [lenlion_agent/MIGRATION.md](./lenlion_agent/MIGRATION.md) | 相对上游 Hermes 的迁移与定制范围 |
 | [lenlion_agent/README.hermes-upstream.md](./lenlion_agent/README.hermes-upstream.md) | 上游 Hermes 完整文档 |
 | [lenlion_agent/README.zh-CN.md](./lenlion_agent/README.zh-CN.md) | 上游中文文档 |

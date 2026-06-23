@@ -381,3 +381,6 @@ select = ["PLW1514"]
 "skills/**" = ["PLW1514"]
 "optional-skills/**" = ["PLW1514"]
 "plugins/**" = ["PLW1514"]
+# assets/ mirrors upstream Hermes bundles (skills, tests, plugins) — not
+# production code paths; same PLW1514 exemption as tests/skills/plugins.
+"assets/**" = ["PLW1514"]

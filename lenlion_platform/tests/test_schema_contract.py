@@ -95,7 +95,7 @@ def test_heartbeat_models_minimal_payload() -> None:
 
 
 def test_approval_models_minimal_payload() -> None:
-    req = ApprovalRequest(
+    ApprovalRequest(
         agent_id="agent-1",
         session_id="sess-1",
         tool="terminal",

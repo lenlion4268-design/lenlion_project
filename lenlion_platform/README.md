@@ -1,76 +1,67 @@
 # Lenlion Platform
 
-Cloud control plane and model gateway for the Lenlion agent runtime.
+**版本：** `0.1.0` · PyPI 包名 `lenlion-platform`
 
-**Current status:** Phase 1 complete — package skeleton, shared DB layer, schema
-boundary, health checks, and Docker Compose bootstrap. Auth, leases, enrollment,
-and gateway enforcement land in Phase 2+.
+Lenlion 云端控制平面与模型网关，与 **本机运行的** [Lenlion Agent](../lenlion_agent/README.md) 配合使用。
 
-**Deployment:** Platform services run in Docker (this compose file). **Lenlion Agent
-runs on the developer/user machine** and connects to the cloud Postgres via
-`DATABASE_URL`. Apply agent schema separately:
+**当前进度：** Phase 1 完成（包骨架、DB 层、schema 边界、健康检查、Docker Compose）。Phase 2+ 将实现 enrollment、租约、admin revoke、模型网关强制。
+
+## 部署分工
+
+| 组件 | 运行位置 |
+|------|----------|
+| Lenlion Agent | **本机**（`lenlion dashboard` 等） |
+| Postgres / control-plane / model-gateway | **云端**（本 compose） |
+
+Agent 通过 `DATABASE_URL` 连接同一 Postgres。建库后须依次执行：
 
 ```bash
-psql "$DATABASE_URL" -f ../lenlion_agent/docker/postgres/init.sql
-psql "$DATABASE_URL" -f db/init.sql
+export DATABASE_URL="postgresql://lenlion:lenlion@127.0.0.1:5432/lenlion"
+psql "$DATABASE_URL" -f ../lenlion_agent/docker/postgres/init.sql   # agent 表
+psql "$DATABASE_URL" -f db/init.sql                                 # platform 表
 ```
 
-## Database boundary
+## 数据库边界
 
-**Decision: same Postgres instance, same database, co-located tables.**
+**同 Postgres 实例、同 database、表共存。**
 
-Platform control tables (`tenants`, `agents`, `leases`, …) live in the same
-Postgres database as the existing `lenlion_agent` session and config tables
-(`sessions`, `messages`, `platform_config`, `platform_secrets`).
+| 归属 | 迁移标记 | 主要表 |
+|------|----------|--------|
+| `lenlion_agent` | `schema_version` | sessions, messages, platform_config, platform_secrets |
+| `lenlion_platform` | `platform_schema_version` | tenants, agents, leases, policies, approvals, … |
 
-| Owner | Migration marker | Tables |
-|-------|------------------|--------|
-| `lenlion_agent` | `schema_version` | sessions, messages, state_meta, compression_locks, platform_config, platform_secrets |
-| `lenlion_platform` | `platform_schema_version` | tenants, agents, leases, policies, approvals, audit_events, skills, kb_documents, model_usage |
+`db/init.sql` **不会** 重建 agent 所属表。
 
-`lenlion_platform/db/init.sql` does **not** recreate agent-owned tables. In
-combined deployments, apply both init scripts to the same database (agent init
-first, then platform init).
-
-## Local development
+## 本地开发
 
 ```bash
 cd lenlion_platform
-uv lock          # first run or after dependency changes
+uv lock
 uv run pytest -q
-docker compose config
-```
-
-### Run services (Phase 1)
-
-```bash
 docker compose up -d
 curl http://127.0.0.1:8080/healthz   # control-plane
 curl http://127.0.0.1:8081/healthz   # model-gateway
 ```
 
-| Service | Port | Phase 1 |
-|---------|------|---------|
-| postgres | 5432 (internal) | pgvector Postgres 16 |
+| 服务 | 端口 | Phase 1 |
+|------|------|---------|
+| postgres | 5432 | pgvector Postgres 16 |
 | control-plane | 8080 | `GET /healthz` |
 | model-gateway | 8081 | `GET /healthz` |
 
-## Environment variables
+## 环境变量
 
-| Variable | Service | Purpose |
-|----------|---------|---------|
-| `DATABASE_URL` | control-plane, model-gateway | Postgres connection string |
-| `PLATFORM_JWT_SECRET` | control-plane, model-gateway | JWT signing secret (Phase 2+) |
-| `ADMIN_TOKEN` | control-plane | Admin API bearer token (Phase 2+) |
-| `OPENAI_COMPAT_BASE_URL` | model-gateway | Upstream OpenAI-compatible API base |
-| `UPSTREAM_OPENAI_API_KEY` | model-gateway | Upstream provider API key |
+| 变量 | 用途 |
+|------|------|
+| `DATABASE_URL` | Postgres 连接串 |
+| `PLATFORM_JWT_SECRET` | JWT 签名（Phase 2+） |
+| `ADMIN_TOKEN` | Admin API（Phase 2+） |
+| `OPENAI_COMPAT_BASE_URL` | 上游 OpenAI 兼容 API |
+| `UPSTREAM_OPENAI_API_KEY` | 上游 API Key |
 
-## Roadmap
+## 路线图
 
-Platform work is split into five phases. Phase 1 exit criteria are met; next is
-**Phase 2 — Hard Control** (enrollment, heartbeat, leases, admin revoke, model
-gateway enforcement).
+五阶段实施，Phase 1 已验收；下一步 **Phase 2 — Hard Control**（enrollment → gateway → revoke 冒烟）。
 
-See monorepo root [README.md](../README.md) and
-[docs/PLATFORM_EXECUTION_PLAN.md](../docs/PLATFORM_EXECUTION_PLAN.md) for the
-full specification.
+- 总规格：[docs/PLATFORM_EXECUTION_PLAN.md](../docs/PLATFORM_EXECUTION_PLAN.md)
+- Monorepo 入口：[../README.md](../README.md)

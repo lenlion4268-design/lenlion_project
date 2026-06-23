@@ -2,10 +2,10 @@
 
 Lenlion 工作区 monorepo，包含：
 
-- **Lenlion Agent**（`lenlion_agent/`）—— 基于 [Hermes Agent](https://github.com/NousResearch/hermes-agent) 的本地优先 AI Agent 运行时
-- **Lenlion Platform**（`lenlion_platform/`）—— 云端控制平面与模型网关（Phase 1 已完成：包骨架、DB 边界、健康检查）
+- **Lenlion Agent** `v0.4.0`（`lenlion_agent/`）—— 基于 [Hermes Agent](https://github.com/NousResearch/hermes-agent) 的本地 AI Agent 运行时（**本机运行**）
+- **Lenlion Platform** `v0.1.0`（`lenlion_platform/`）—— 云端控制平面与模型网关（Phase 1：包骨架、DB 边界、健康检查）
 
-Lenlion Agent 是一个 **本地优先（local-first）** 的可插拔 Agent 运行时：在本机运行 CLI、Web Chat、Gateway 与 Cron，会话与配置通过 **`DATABASE_URL` 写入云端 Postgres**。Platform 负责控制平面、模型网关与数据库托管（Phase 2+ 进行中）。
+Agent 在本机运行 CLI / Web Chat / Gateway / Cron；会话与配置经 **`DATABASE_URL`** 写入云端 Postgres。Platform 托管数据库与控制平面服务（Phase 2+：enrollment、租约、模型网关强制）。
 
 ## 能力概览
 
@@ -107,13 +107,18 @@ display:
 完整步骤见 **[lenlion_agent/DEPLOYMENT.md](./lenlion_agent/DEPLOYMENT.md)**。
 
 ```bash
-# 1. 云端：启动 Platform Postgres（或连接托管库）
-cd lenlion_platform && docker compose up -d postgres
+# 1. 云端：Postgres + Platform 服务
+cd lenlion_platform
+docker compose up -d postgres
+export DATABASE_URL="postgresql://lenlion:lenlion@127.0.0.1:5432/lenlion"
+psql "$DATABASE_URL" -f ../lenlion_agent/docker/postgres/init.sql
+psql "$DATABASE_URL" -f db/init.sql
+docker compose up -d   # control-plane :8080, model-gateway :8081
 
-# 2. 本机：安装 Agent 并配置 DATABASE_URL
-cd lenlion_agent
+# 2. 本机：Agent
+cd ../lenlion_agent
 pip install -e ".[cli,web,mcp,cron,postgres]"
-# ~/.hermes/.env → DATABASE_URL=postgresql://...
+# ~/.hermes/.env → 同上 DATABASE_URL
 lenlion setup && lenlion dashboard
 ```
 

@@ -1,8 +1,10 @@
 # Lenlion Agent
 
-基于 [Hermes Agent](https://github.com/NousResearch/hermes-agent) 核心运行时的独立 AI Agent 项目。
+**版本：** `0.4.0` · PyPI 包名 `lenlion-agent`
 
-**部署模型：** 在本机运行 Agent（CLI / Web / Gateway），通过 `DATABASE_URL` 连接**云端 Postgres** 存储会话、配置与密钥。不再提供 Agent 容器化部署。
+基于 [Hermes Agent](https://github.com/NousResearch/hermes-agent) 核心运行时的 AI Agent 项目。
+
+**部署模型：** 在本机运行（CLI / Web / Gateway），通过 `DATABASE_URL` 连接**云端 Postgres** 存储会话、配置与密钥。不提供 Agent 容器化部署。
 
 ## 能力概览
 
@@ -22,13 +24,22 @@ pip install -e ".[cli,web,mcp,cron,postgres]"
 lenlion setup
 ```
 
+**Python 3.11 – 3.13**（见 `pyproject.toml`）。
+
 在 `~/.hermes/.env` 中配置云端数据库：
 
 ```bash
 DATABASE_URL=postgresql://user:pass@your-cloud-host:5432/lenlion?sslmode=require
 ```
 
-Schema 初始化与 Platform 联调见 **[DEPLOYMENT.md](./DEPLOYMENT.md)**。
+首次建库需执行 schema（与 Platform 同库时先 agent、后 platform）：
+
+```bash
+psql "$DATABASE_URL" -f docker/postgres/init.sql
+psql "$DATABASE_URL" -f ../lenlion_platform/db/init.sql
+```
+
+详见 **[DEPLOYMENT.md](./DEPLOYMENT.md)** 与 [../lenlion_platform/README.md](../lenlion_platform/README.md)。
 
 ## 使用
 
@@ -48,53 +59,41 @@ npm install
 npm run build   # 输出到 hermes_cli/web_dist/
 ```
 
-`lenlion dashboard` 会在 dist 过期时自动尝试构建（需本机安装 Node.js/npm）。
-
-- **本地文件：** `~/.hermes/` — 技能、日志、缓存
-- **云端 Postgres（`DATABASE_URL`）：** 会话、消息、Web 配置、密钥
+| 存储 | 位置 |
+|------|------|
+| 技能、日志、缓存 | 本机 `~/.hermes/` |
+| 会话、消息、配置、密钥 | 云端 Postgres（`DATABASE_URL`） |
 
 ## 目录结构
 
 ```
 lenlion_agent/
-├── DEPLOYMENT.md     # 本地部署 + 云端数据库（主文档）
+├── DEPLOYMENT.md     # 本地部署 + 云端数据库
 ├── docker/postgres/  # Agent schema（应用到云端库）
 ├── run_agent.py      # Agent 核心循环
-├── model_tools.py    # 工具编排
-├── toolsets.py       # 工具集
-├── cli.py            # CLI 编排
-├── agent/            # Agent 内部模块
-├── tools/            # 工具实现
-├── hermes_cli/       # CLI 子命令 + FastAPI Web 服务
+├── hermes_cli/       # CLI + FastAPI Web 服务
 ├── gateway/          # 消息网关
 ├── web/              # Vue 3 聊天前端
-├── tui_gateway/      # WebSocket JSON-RPC 聊天后端引擎
-├── cron/             # 调度器
-├── plugins/          # 内置插件
-├── skills/           # 内置技能
-├── tests/            # 测试
+├── tui_gateway/      # WebSocket JSON-RPC 聊天后端
+├── agent/ tools/ plugins/ skills/ cron/ tests/
 └── ...
 ```
-
-CI 配置位于 monorepo 根目录 `.github/`（`working-directory: lenlion_agent`）。
 
 ## 文档
 
 - [DEPLOYMENT.md](./DEPLOYMENT.md) — 本机运行 + 云端 `DATABASE_URL`
 - [ARCHITECTURE.md](./ARCHITECTURE.md) — 架构与 Postgres 双后端
-- [MIGRATION.md](./MIGRATION.md) — 迁移范围与定制说明
-- [README.hermes-upstream.md](./README.hermes-upstream.md) — 上游 Hermes 完整文档
-- [README.zh-CN.md](./README.zh-CN.md) — 上游中文文档
+- [../lenlion_platform/README.md](../lenlion_platform/README.md) — 云端 Platform 与数据库
+- [MIGRATION.md](./MIGRATION.md) — 相对上游 Hermes 的定制范围
 
 ## 中文界面
 
-在 `~/.hermes/config.yaml` 中设置：
-
 ```yaml
+# ~/.hermes/config.yaml
 display:
   language: zh
 ```
 
 ## 许可证
 
-MIT — 与上游 Hermes Agent 相同。见 [LICENSE](./LICENSE)。
+MIT — 见 [LICENSE](./LICENSE)。

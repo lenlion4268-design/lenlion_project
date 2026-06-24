@@ -87,3 +87,19 @@ AI 生成任务的生命周期状态。
 - `GET /api/projects/{project_id}/volumes` — 故事卷列表
 
 草稿资产不会自动进入下游 AI 生成上下文；确认与锁定流程见 Phase 2。
+
+### 审核 API（Phase 2）
+
+- `POST /api/review/confirm` — 确认资产（draft/pending_confirm → confirmed）
+- `POST /api/review/lock` — 锁定资产
+- `POST /api/review/reject` — 驳回资产
+- `POST /api/review/unlock` — 解锁资产（locked → confirmed）
+- `GET /api/projects/{project_id}/readiness/{target_stage}` — 生成准入检查（`outline` / `volumes` / `chapters`）
+
+准入规则：
+
+- 大纲生成：主题、世界观、至少一个核心角色为 confirmed 或 locked
+- 故事卷生成：目标大纲为 locked（可传 `?outline_id=`）
+- 章节生成：主题、世界观、大纲、目标故事卷为 locked，相关角色至少 confirmed（可传 `?volume_id=`）
+
+锁定资产不可通过普通编辑接口覆盖。

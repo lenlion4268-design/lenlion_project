@@ -52,3 +52,25 @@ class AssetSourceType(StrEnum):
     MANUAL = "manual"
     REFERENCE_PARSE = "reference_parse"
     AI_SUGGESTED = "ai_suggested"
+
+
+class ReviewTargetType(StrEnum):
+    CHARACTER_CARD = "character_card"
+    THEME_PROFILE = "theme_profile"
+    WORLD_SETTING = "world_setting"
+    OUTLINE = "outline"
+    VOLUME = "volume"
+    CHAPTER = "chapter"
+
+
+class ReviewAction(StrEnum):
+    CONFIRM = "confirm"
+    LOCK = "lock"
+    REJECT = "reject"
+    UNLOCK = "unlock"
+
+
+class ReadinessStage(StrEnum):
+    OUTLINE = "outline"
+    VOLUMES = "volumes"
+    CHAPTERS = "chapters"

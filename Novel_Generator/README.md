@@ -4,7 +4,7 @@
 
 AI 小说自动生成平台 — **本地优先**的单作者创作工作台，位于 [lenlion-project](../README.md) monorepo 的 `Novel_Generator/` 目录。
 
-**当前进度：** Phase 1 — 项目书架、创作资产 CRUD（角色/主题/世界观/大纲/故事卷）、工作台基础布局。
+**当前进度：** Phase 2 — 作者确认/锁定流、生成准入检查（ReadinessService）、review_records 审计。
 
 ## 技术栈
 
@@ -127,5 +127,6 @@ Novel Generator 为 **独立应用**，使用**本地 Postgres**（`novel_genera
 | 阶段 | 内容 | 状态 |
 |------|------|------|
 | Phase 0 | 工程骨架、领域约束、健康检查、前后端联调 | ✅ |
-| Phase 1 | 项目书架、基础创作资产、工作台布局 | ✅ 当前 |
-| Phase 2+ | 确认锁定、AI 生成流水线、章节与成稿 | 待实施 |
+| Phase 1 | 项目书架、基础创作资产、工作台布局 | ✅ |
+| Phase 2 | 确认锁定、准入检查、review 记录 | ✅ 当前 |
+| Phase 3+ | AI 生成流水线、章节与成稿 | 待实施 |

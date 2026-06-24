@@ -1,11 +1,18 @@
 import type {
   CharacterCard,
   CharacterProfile,
+  ConfirmStatus,
+  LockStatus,
   NovelProject,
   Outline,
   ProjectListResponse,
   ProjectMode,
   ProjectStatus,
+  ReadinessResponse,
+  ReadinessStage,
+  ReviewAction,
+  ReviewResponse,
+  ReviewTargetType,
   ThemeProfile,
   Volume,
   WorldBackground,
@@ -169,4 +176,27 @@ export function createVolume(
   });
 }
 
+export function submitReview(
+  action: ReviewAction,
+  data: { target_type: ReviewTargetType; target_id: string; comment?: string },
+): Promise<ReviewResponse> {
+  return request(`/review/${action}`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function getReadiness(
+  projectId: string,
+  targetStage: ReadinessStage,
+  params?: { outline_id?: string; volume_id?: string },
+): Promise<ReadinessResponse> {
+  const query = new URLSearchParams();
+  if (params?.outline_id) query.set("outline_id", params.outline_id);
+  if (params?.volume_id) query.set("volume_id", params.volume_id);
+  const suffix = query.toString() ? `?${query.toString()}` : "";
+  return request(`/projects/${projectId}/readiness/${targetStage}${suffix}`);
+}
+
 export { ApiError };
+export type { ConfirmStatus, LockStatus, ReadinessResponse, ReviewTargetType };

@@ -1,6 +1,6 @@
 # Lenlion Agent
 
-**版本：** `0.4.0` · PyPI 包名 `lenlion-agent`
+**版本：** `0.5.0` · PyPI 包名 `lenlion-agent`
 
 基于 [Hermes Agent](https://github.com/NousResearch/hermes-agent) 核心运行时的 AI Agent 项目。
 

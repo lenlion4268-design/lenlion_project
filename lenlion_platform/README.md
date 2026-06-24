@@ -1,67 +1,89 @@
 # Lenlion Platform
 
-**版本：** `0.1.0` · PyPI 包名 `lenlion-platform`
+**版本：** `0.5.0` · PyPI 包名 `lenlion-platform`
 
 Lenlion 云端控制平面与模型网关，与 **本机运行的** [Lenlion Agent](../lenlion_agent/README.md) 配合使用。
 
-**当前进度：** Phase 1 完成（包骨架、DB 层、schema 边界、健康检查、Docker Compose）。Phase 2+ 将实现 enrollment、租约、admin revoke、模型网关强制。
+**当前进度：** Phase 2 完成 — enrollment、heartbeat、租约 JWT、admin revoke、模型网关强制（policy fail-closed）。
+
+## 能力（Phase 2）
+
+| 接口 | 说明 |
+|------|------|
+| `POST /admin/enrollment-tokens` | Admin 创建一次性 enrollment token |
+| `POST /agents/register` | Agent 注册，返回 `node_credential`（仅一次） |
+| `POST /agents/heartbeat` | 续租，返回 `agent_token` + `EdgePolicy` |
+| `POST /admin/agents/{id}/revoke` | 撤销 agent 及活跃 lease |
+| `GET /v1/models` | 模型网关（需 `agent_token`） |
+| `POST /v1/chat/completions` | OpenAI 兼容代理（policy 校验 + 上游转发） |
+
+注册助手：
+
+```bash
+python scripts/enroll_agent.py \
+  --base-url http://127.0.0.1:8080 \
+  --name local-dev \
+  --enrollment-token "$ENROLLMENT_TOKEN"
+```
 
 ## 部署分工
 
 | 组件 | 运行位置 |
 |------|----------|
-| Lenlion Agent | **本机**（`lenlion dashboard` 等） |
+| Lenlion Agent | **本机** |
 | Postgres / control-plane / model-gateway | **云端**（本 compose） |
 
 Agent 通过 `DATABASE_URL` 连接同一 Postgres。建库后须依次执行：
 
 ```bash
 export DATABASE_URL="postgresql://lenlion:lenlion@127.0.0.1:5432/lenlion"
-psql "$DATABASE_URL" -f ../lenlion_agent/docker/postgres/init.sql   # agent 表
-psql "$DATABASE_URL" -f db/init.sql                                 # platform 表
+psql "$DATABASE_URL" -f ../lenlion_agent/docker/postgres/init.sql
+psql "$DATABASE_URL" -f db/init.sql
 ```
 
-## 数据库边界
+## 硬控制冒烟（本地）
 
-**同 Postgres 实例、同 database、表共存。**
+```bash
+docker compose up -d postgres control-plane model-gateway
 
-| 归属 | 迁移标记 | 主要表 |
-|------|----------|--------|
-| `lenlion_agent` | `schema_version` | sessions, messages, platform_config, platform_secrets |
-| `lenlion_platform` | `platform_schema_version` | tenants, agents, leases, policies, approvals, … |
+# 创建 enrollment token
+curl -s -X POST http://127.0.0.1:8080/admin/enrollment-tokens \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"tenant_id":"dev-tenant"}'
 
-`db/init.sql` **不会** 重建 agent 所属表。
+# 注册 + 写 ~/.hermes 配置
+python scripts/enroll_agent.py --name local-dev --enrollment-token "$TOKEN"
 
-## 本地开发
+# 心跳取 agent_token 后调网关；revoke 后应 401/403
+```
+
+## 环境变量
+
+| 变量 | 服务 | 用途 |
+|------|------|------|
+| `DATABASE_URL` | control-plane, model-gateway | Postgres |
+| `PLATFORM_JWT_SECRET` | 两者 | JWT HS256 签名 |
+| `ADMIN_TOKEN` | control-plane | Admin API |
+| `OPENAI_COMPAT_BASE_URL` | model-gateway | 上游 OpenAI 兼容 API |
+| `UPSTREAM_OPENAI_API_KEY` | model-gateway | 上游 Key |
+
+## 开发与测试
 
 ```bash
 cd lenlion_platform
 uv lock
 uv run pytest -q
 docker compose up -d
-curl http://127.0.0.1:8080/healthz   # control-plane
-curl http://127.0.0.1:8081/healthz   # model-gateway
 ```
-
-| 服务 | 端口 | Phase 1 |
-|------|------|---------|
-| postgres | 5432 | pgvector Postgres 16 |
-| control-plane | 8080 | `GET /healthz` |
-| model-gateway | 8081 | `GET /healthz` |
-
-## 环境变量
-
-| 变量 | 用途 |
-|------|------|
-| `DATABASE_URL` | Postgres 连接串 |
-| `PLATFORM_JWT_SECRET` | JWT 签名（Phase 2+） |
-| `ADMIN_TOKEN` | Admin API（Phase 2+） |
-| `OPENAI_COMPAT_BASE_URL` | 上游 OpenAI 兼容 API |
-| `UPSTREAM_OPENAI_API_KEY` | 上游 API Key |
 
 ## 路线图
 
-五阶段实施，Phase 1 已验收；下一步 **Phase 2 — Hard Control**（enrollment → gateway → revoke 冒烟）。
+| 阶段 | 状态 |
+|------|------|
+| Phase 1 — Foundation | ✅ |
+| Phase 2 — Hard Control | ✅ 当前 |
+| Phase 3 — Edge Runtime | 待实施 |
 
 - 总规格：[docs/PLATFORM_EXECUTION_PLAN.md](../docs/PLATFORM_EXECUTION_PLAN.md)
-- Monorepo 入口：[../README.md](../README.md)
+- Monorepo：[../README.md](../README.md)

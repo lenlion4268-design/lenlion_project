@@ -2,10 +2,10 @@
 
 Lenlion 工作区 monorepo，包含：
 
-- **Lenlion Agent** `v0.4.0`（`lenlion_agent/`）—— 基于 [Hermes Agent](https://github.com/NousResearch/hermes-agent) 的本地 AI Agent 运行时（**本机运行**）
-- **Lenlion Platform** `v0.1.0`（`lenlion_platform/`）—— 云端控制平面与模型网关（Phase 1：包骨架、DB 边界、健康检查）
+- **Lenlion Agent** `v0.5.0`（`lenlion_agent/`）—— 基于 [Hermes Agent](https://github.com/NousResearch/hermes-agent) 的本地 AI Agent 运行时（**本机运行**）
+- **Lenlion Platform** `v0.5.0`（`lenlion_platform/`）—— 云端控制平面与模型网关（Phase 2：enrollment、租约、网关强制、revoke）
 
-Agent 在本机运行 CLI / Web Chat / Gateway / Cron；会话与配置经 **`DATABASE_URL`** 写入云端 Postgres。Platform 托管数据库与控制平面服务（Phase 2+：enrollment、租约、模型网关强制）。
+Agent 在本机运行 CLI / Web Chat / Gateway / Cron；会话与配置经 **`DATABASE_URL`** 写入云端 Postgres。Platform 托管数据库与控制平面服务（Phase 3：本地 edge 插件与云端审批待实施）。
 
 ## 能力概览
 
@@ -40,8 +40,8 @@ lenlion-project/
 │   ├── skills/           # 内置技能
 │   └── tests/            # 测试
 └── lenlion_platform/     # 云端控制平面（Python 包 lenlion-platform）
-    ├── control_plane/    # enrollment / lease / approval API（Phase 2+）
-    ├── model_gateway/    # OpenAI 兼容模型网关（Phase 2+）
+    ├── control_plane/    # enrollment / lease / approval API
+    ├── model_gateway/    # OpenAI 兼容模型网关（policy 强制）
     ├── db/init.sql       # 平台控制表（与 agent 表同库共存）
     ├── docker-compose.yml
     └── tests/
@@ -147,7 +147,7 @@ uv run ruff check .
 
 ### Platform（`lenlion_platform/`）
 
-Phase 1 提供 health 端点与 schema 契约；auth / lease / gateway 强制在 Phase 2+ 实现。
+Phase 2 提供 enrollment / heartbeat / revoke / 模型网关；Phase 3 将接入 `lenlion_edge` 插件。
 
 ```bash
 cd lenlion_platform
@@ -179,7 +179,7 @@ curl http://127.0.0.1:8080/healthz
 | [lenlion_agent/README.md](./lenlion_agent/README.md) | 安装、使用、目录结构 |
 | [lenlion_agent/ARCHITECTURE.md](./lenlion_agent/ARCHITECTURE.md) | 架构分层、模块职责、数据流 |
 | [lenlion_platform/README.md](./lenlion_platform/README.md) | 平台包说明、DB 边界、本地开发与 Compose |
-| [docs/PLATFORM_EXECUTION_PLAN.md](./docs/PLATFORM_EXECUTION_PLAN.md) | 平台实施总规格（Phase 2+ 执行入口） |
+| [docs/PLATFORM_EXECUTION_PLAN.md](./docs/PLATFORM_EXECUTION_PLAN.md) | 平台实施总规格（Phase 3+ 执行入口） |
 | [lenlion_agent/MIGRATION.md](./lenlion_agent/MIGRATION.md) | 相对上游 Hermes 的迁移与定制范围 |
 | [lenlion_agent/README.hermes-upstream.md](./lenlion_agent/README.hermes-upstream.md) | 上游 Hermes 完整文档 |
 | [lenlion_agent/README.zh-CN.md](./lenlion_agent/README.zh-CN.md) | 上游中文文档 |

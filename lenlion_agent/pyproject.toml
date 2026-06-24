@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lenlion-agent"
-version = "0.4.0"
+version = "0.5.0"
 description = "Lenlion AI agent — CLI, gateway, tools, skills, and cron scheduling (forked from Hermes Agent core)"
 readme = "README.md"
 # Upper bound is load-bearing, not cosmetic. uv resolves the project's

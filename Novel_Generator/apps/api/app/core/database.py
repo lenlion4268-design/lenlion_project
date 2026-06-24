@@ -13,6 +13,11 @@ class Base(DeclarativeBase):
     pass
 
 
+# Import domain models so Alembic metadata includes all tables.
+from app.domains.assets import models as _asset_models  # noqa: E402, F401
+from app.domains.projects import models as _project_models  # noqa: E402, F401
+
+
 def get_db() -> Generator[Session, None, None]:
     db = SessionLocal()
     try:

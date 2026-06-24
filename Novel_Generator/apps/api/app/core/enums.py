@@ -26,3 +26,29 @@ class GenerationJobStatus(StrEnum):
     SUCCEEDED = "succeeded"
     FAILED = "failed"
     CANCELLED = "cancelled"
+
+
+class ProjectStatus(StrEnum):
+    ACTIVE = "active"
+    ARCHIVED = "archived"
+
+
+class ProjectStage(StrEnum):
+    CHARACTERS = "characters"
+    THEME = "theme"
+    WORLD = "world"
+    OUTLINE = "outline"
+    VOLUMES = "volumes"
+    CHAPTERS = "chapters"
+
+
+class CharacterCardType(StrEnum):
+    PERSON = "person"
+    ORGANIZATION = "organization"
+    FORCE = "force"
+
+
+class AssetSourceType(StrEnum):
+    MANUAL = "manual"
+    REFERENCE_PARSE = "reference_parse"
+    AI_SUGGESTED = "ai_suggested"

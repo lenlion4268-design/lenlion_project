@@ -51,6 +51,7 @@ class CharacterCardType(StrEnum):
 class AssetSourceType(StrEnum):
     MANUAL = "manual"
     REFERENCE_PARSE = "reference_parse"
+    OWN_COMPLETED = "own_completed"
     AI_SUGGESTED = "ai_suggested"
 
 
@@ -74,3 +75,71 @@ class ReadinessStage(StrEnum):
     OUTLINE = "outline"
     VOLUMES = "volumes"
     CHAPTERS = "chapters"
+
+
+class ModelProfile(StrEnum):
+    DEFAULT = "default"
+    FAST = "fast"
+    QUALITY = "quality"
+
+
+class ExecutionMode(StrEnum):
+    SYNC = "sync"
+    ASYNC = "async"
+
+
+class PublicationStatus(StrEnum):
+    DRAFT = "draft"
+    PUBLISHED = "published"
+    ARCHIVED = "archived"
+
+
+class PublishChannel(StrEnum):
+    LOCAL = "local"
+    WEBHOOK = "webhook"
+    PLATFORM = "platform"
+
+
+class ExportFormat(StrEnum):
+    MARKDOWN = "markdown"
+    TEXT = "text"
+    EPUB = "epub"
+
+
+class DeliveryStatus(StrEnum):
+    PENDING = "pending"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+
+
+class QueueBackend(StrEnum):
+    THREAD = "thread"
+    REDIS = "redis"
+    CELERY = "celery"
+
+
+class PlatformPayloadPreset(StrEnum):
+    DEFAULT = "default"
+    MINIMAL = "minimal"
+    FULL = "full"
+
+
+class ReferenceWorkStatus(StrEnum):
+    UPLOADED = "uploaded"
+    INGESTED = "ingested"
+    FAILED = "failed"
+
+
+class ReferenceFormat(StrEnum):
+    TXT = "txt"
+    MD = "md"
+    EPUB = "epub"
+
+
+class StyleAnalysisJobStatus(StrEnum):
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+    CANCELLED = "cancelled"

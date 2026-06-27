@@ -8,7 +8,7 @@ Lenlion 工作区 monorepo — 汇集 **AI Agent 运行时**、**云端监管平
 |------|------|------|------|
 | [`lenlion_agent/`](./lenlion_agent/) | 本地 AI Agent 运行时（CLI / Web / Gateway / Cron），基于 [Hermes Agent](https://github.com/NousResearch/hermes-agent) 定制 | `v0.5.0` | [README](./lenlion_agent/README.md) · [部署](./lenlion_agent/DEPLOYMENT.md) · [架构](./lenlion_agent/ARCHITECTURE.md) |
 | [`lenlion_platform/`](./lenlion_platform/) | 云端控制平面与 OpenAI 兼容模型网关（enrollment、租约、policy 强制、revoke） | `v0.5.0` | [README](./lenlion_platform/README.md) |
-| [`Novel_Generator/`](./Novel_Generator/) | AI 小说自动生成平台 — 本地优先的单作者创作工作台（Next.js + FastAPI） | API/Web `v0.1.0` | [README](./Novel_Generator/README.md) |
+| [`Novel_Generator/`](./Novel_Generator/) | AI 小说自动生成平台 — 本地优先的单作者创作工作台（Next.js + FastAPI） | API/Web `v0.8.0` | [README](./Novel_Generator/README.md) |
 
 ## 整体关系
 

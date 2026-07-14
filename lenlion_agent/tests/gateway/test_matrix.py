@@ -2465,6 +2465,7 @@ class TestMatrixDiagnostics:
             assert hasattr(MatrixAdapter, method), f"{capability} needs {method}"
         assert capabilities["E2EE"] == "off / optional / required"
 
+    @pytest.mark.skip(reason="upstream website was removed from the Lenlion fork")
     def test_matrix_docs_capability_table_matches_declaration(self):
         from pathlib import Path
 

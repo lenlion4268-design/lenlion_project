@@ -438,6 +438,7 @@ class TestWebToolPolicy:
 
         # After the web-provider migration, the per-URL gate + firecrawl client
         # live in the plugin. Patch both at the plugin location.
+        monkeypatch.setattr(firecrawl_provider, "is_safe_url", lambda _url: True)
         monkeypatch.setattr(firecrawl_provider, "check_website_access", fake_check)
         monkeypatch.setattr(firecrawl_provider, "_get_firecrawl_client", lambda: FakeFirecrawlClient())
         monkeypatch.setattr("tools.interrupt.is_interrupted", lambda: False)

@@ -90,6 +90,12 @@ _SKIP_FILE_SUBSTRINGS = (
     "test_memento_cards",                  # optional-skills package removed
     "test_package_json_lazy_deps",         # root npm/browser bundle removed
     "test_dockerfile_immutable_install",   # upstream immutable image replaced
+    "test_dockerfile_pid1_reaping",        # upstream s6/TUI image contract removed
+    "test_desktop_electron_pin",           # Electron desktop app removed
+    "test_tui_bundled",                    # Ink TUI bundle removed
+    "test_lint_config",                    # workflows moved to monorepo root
+    "test_xurl_article_ingestion_docs",    # upstream website removed
+    "test_windows_native_docs",            # upstream website removed
 )
 
 # Per-file wall-clock cap. Override

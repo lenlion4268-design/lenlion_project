@@ -26,7 +26,7 @@ import pytest
 def isolated_home(tmp_path, monkeypatch):
     home = tmp_path / "home"
     lenlion = home / ".hermes"
-    hermes.mkdir(parents=True)
+    lenlion.mkdir(parents=True)
     monkeypatch.setattr(Path, "home", lambda: home)
     monkeypatch.setenv("HERMES_HOME", str(lenlion))
     # Ensure get_env_value cache doesn't carry stale state.

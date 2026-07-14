@@ -814,7 +814,8 @@ def _looks_like_human_speaker(speaker: str, bot_guest_name: str) -> bool:
     if not speaker or not speaker.strip():
         return False
     spk = speaker.strip().lower()
-    if spk in {"unknown", "you", bot_guest_name.strip().lower()}:
+    bot_names = {"hermes agent", "lenlion agent", bot_guest_name.strip().lower()}
+    if spk in {"unknown", "you", *bot_names}:
         return False
     return True
 

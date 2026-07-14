@@ -24,6 +24,12 @@ pip install -e ".[cli,web,mcp,cron,postgres]"
 lenlion setup
 ```
 
+Windows PowerShell 可使用仓库内安装器：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1
+```
+
 **Python 3.11 – 3.13**（见 `pyproject.toml`）。
 
 在 `~/.hermes/.env` 中配置云端数据库：

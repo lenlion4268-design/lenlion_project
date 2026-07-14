@@ -148,6 +148,7 @@ class TestHostHeaderMiddleware:
         assert resp.status_code != 400
 
 
+@pytest.mark.skip(reason="PTY event WebSockets were removed from the Lenlion fork")
 class TestWebSocketHostOriginGuard:
     """WebSocket upgrades must enforce the same dashboard boundary as HTTP."""
 

@@ -523,7 +523,7 @@ class GitHubSource(SkillSource):
         tags = []
         metadata = fm.get("metadata", {})
         if isinstance(metadata, dict):
-            hermes_meta = metadata.get("hermes", {})
+            hermes_meta = metadata.get("lenlion") or metadata.get("hermes") or {}
             if isinstance(hermes_meta, dict):
                 tags = hermes_meta.get("tags", [])
         if not tags:
@@ -1254,7 +1254,7 @@ class UrlSource(SkillSource):
         tags: List[str] = []
         metadata = fm.get("metadata", {})
         if isinstance(metadata, dict):
-            hermes_meta = metadata.get("hermes", {})
+            hermes_meta = metadata.get("lenlion") or metadata.get("hermes") or {}
             if isinstance(hermes_meta, dict):
                 raw_tags = hermes_meta.get("tags", [])
                 if isinstance(raw_tags, list):
@@ -3057,7 +3057,7 @@ class OptionalSkillSource(SkillSource):
             tags = []
             meta_block = fm.get("metadata", {})
             if isinstance(meta_block, dict):
-                hermes_meta = meta_block.get("hermes", {})
+                hermes_meta = meta_block.get("lenlion") or meta_block.get("hermes") or {}
                 if isinstance(hermes_meta, dict):
                     tags = hermes_meta.get("tags", [])
 

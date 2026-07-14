@@ -96,6 +96,8 @@ _SKIP_FILE_SUBSTRINGS = (
     "test_lint_config",                    # workflows moved to monorepo root
     "test_xurl_article_ingestion_docs",    # upstream website removed
     "test_windows_native_docs",            # upstream website removed
+    "test_mini_swe_runner",                # mini-SWE runner removed
+    "test_dockerfile_node_modules_perms",  # Ink TUI image contract removed
 )
 
 # Per-file wall-clock cap. Override

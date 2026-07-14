@@ -79,3 +79,53 @@ class AuditEvent(BaseModel):
     kind: str
     payload: dict[str, Any] = Field(default_factory=dict)
     created_at: int
+
+
+class AdminAgentRow(BaseModel):
+    id: str
+    tenant_id: str
+    name: str
+    hostname: str
+    version: str
+    status: str
+    last_heartbeat: int | None = None
+    revoked_at: int | None = None
+    created_at: int
+
+
+class AdminAuditEventRow(BaseModel):
+    id: str
+    tenant_id: str
+    agent_id: str | None = None
+    session_id: str | None = None
+    kind: str
+    payload: dict[str, Any] = Field(default_factory=dict)
+    created_at: int
+
+
+class AdminApprovalRow(BaseModel):
+    id: str
+    tenant_id: str
+    agent_id: str
+    session_id: str
+    tool: str
+    decision: str
+    decided_by: str
+    reason: str
+    created_at: int
+    consumed_at: int | None = None
+
+
+class AdminAgentListResponse(BaseModel):
+    items: list[AdminAgentRow]
+    next_cursor: str | None = None
+
+
+class AdminAuditEventListResponse(BaseModel):
+    items: list[AdminAuditEventRow]
+    next_cursor: str | None = None
+
+
+class AdminApprovalListResponse(BaseModel):
+    items: list[AdminApprovalRow]
+    next_cursor: str | None = None

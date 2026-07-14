@@ -41,7 +41,13 @@ services:
     command:
       - sh
       - -c
-      - pip install -q -e . && uvicorn control_plane.app:create_app --factory --host 0.0.0.0 --port 8080
+      - |
+        if [ -f control_plane/web_dist/index.html ]; then
+          echo "Admin UI dist found"
+        else
+          echo "WARN: run 'cd web && npm ci && npm run build' before compose for /admin-ui/"
+        fi
+        pip install -q -e . && uvicorn control_plane.app:create_app --factory --host 0.0.0.0 --port 8080
     ports:
       - "127.0.0.1:8080:8080"
 

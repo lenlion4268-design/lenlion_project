@@ -15,7 +15,7 @@
 | `toolsets.py` | 工具集定义 |
 | `cli.py` / `hermes_cli/` | CLI 入口与子命令 + FastAPI Dashboard |
 | `gateway/` | 消息网关（Telegram、Discord、Slack 等） |
-| `web/` | Vue 3 Web 聊天前端（构建到 `hermes_cli/web_dist/`） |
+| `web/` | React 19 Web 管理平台前端（构建到 `hermes_cli/web_dist/`） |
 | `tui_gateway/` | WebSocket JSON-RPC 聊天后端引擎（非终端 UI） |
 | `cron/` | 定时任务调度 |
 | `plugins/` | 内置插件（memory、model-providers 等） |
@@ -41,7 +41,7 @@
 |------|------|
 | `website/` | Docusaurus 文档站 |
 | `apps/desktop/` | Electron 桌面应用 |
-| 上游 React `web/` 全功能 Dashboard | 本仓库仅实现 chat-only Vue SPA |
+| 上游 React `web/` 全功能 Dashboard | 本仓库实现 React 19 管理平台 SPA（12 视图） |
 | `optional-skills/` | 可选重型技能包 |
 | `acp_adapter/` | VS Code / Zed ACP 集成 |
 | `docker/` / `nix/` | 上游 s6-overlay 容器与 Nix 打包（本 fork 提供精简 Docker，见 [DOCKER.md](./DOCKER.md)） |
@@ -78,7 +78,7 @@ cd web && npm install && npm run build
 3. ✅ CLI 命令改为 `lenlion`（配置目录仍为 `~/.hermes/`）
 4. ✅ 入口文档改为 [README.md](./README.md)
 5. ✅ skills、locales、插件文档与代码内用户提示中的 CLI 命令已统一为 `lenlion`
-6. ✅ 移除 Ink TUI，新增 Vue 3 Web Chat（`/api/ws` + `tui_gateway`）
+6. ✅ 移除 Ink TUI，新增 React Web Dashboard（`/api/ws` + `tui_gateway`）
 7. ✅ 新增精简 Docker 部署（`Dockerfile`、`docker-compose.yml`、[DOCKER.md](./DOCKER.md) 与 `scripts/deploy-docker.sh`）
 
 ## 后续定制建议

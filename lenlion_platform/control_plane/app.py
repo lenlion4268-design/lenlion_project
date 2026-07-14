@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, Header, HTTPException, status
 
 from control_plane import store
+from control_plane.admin import router as admin_router
 from control_plane.auth import verify_admin_header
 from control_plane.leases import (
     ExpiredTokenError,
@@ -21,10 +22,13 @@ from control_plane.models import (
     HeartbeatResponse,
 )
 from control_plane.policies import ensure_tenant_policy, get_agent_policy
+from control_plane.static_ui import mount_admin_ui
 
 
 def create_app() -> FastAPI:
     app = FastAPI(title="lenlion-control-plane")
+    mount_admin_ui(app)
+    app.include_router(admin_router)
 
     @app.get("/healthz")
     def healthz() -> dict[str, str | bool]:
@@ -103,20 +107,6 @@ def create_app() -> FastAPI:
             lease_expires_at=expires_at,
             policy=policy,
         )
-
-    @app.post("/admin/agents/{agent_id}/revoke")
-    def revoke_agent(
-        agent_id: str,
-        authorization: Annotated[str | None, Header()] = None,
-    ) -> dict[str, str]:
-        verify_admin_header(authorization)
-        if store.get_agent(agent_id) is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="agent not found",
-            )
-        store.revoke_agent(agent_id)
-        return {"status": "revoked", "agent_id": agent_id}
 
     return app
 

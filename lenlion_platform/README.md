@@ -13,6 +13,9 @@ Lenlion 云端控制平面与模型网关，与 **本机运行的** [Lenlion Age
 | `POST /admin/enrollment-tokens` | Admin 创建一次性 enrollment token |
 | `POST /agents/register` | Agent 注册，返回 `node_credential`（仅一次） |
 | `POST /agents/heartbeat` | 续租，返回 `agent_token` + `EdgePolicy` |
+| `GET /admin/agents` | Admin 列出 agents（tenant 过滤 + 分页） |
+| `GET /admin/audit-events` | Admin 审计事件列表 |
+| `GET /admin/approvals` | Admin 审批记录列表 |
 | `POST /admin/agents/{id}/revoke` | 撤销 agent 及活跃 lease |
 | `GET /v1/models` | 模型网关（需 `agent_token`） |
 | `POST /v1/chat/completions` | OpenAI 兼容代理（policy 校验 + 上游转发） |
@@ -67,6 +70,22 @@ python scripts/enroll_agent.py --name local-dev --enrollment-token "$TOKEN"
 | `ADMIN_TOKEN` | control-plane | Admin API |
 | `OPENAI_COMPAT_BASE_URL` | model-gateway | 上游 OpenAI 兼容 API |
 | `UPSTREAM_OPENAI_API_KEY` | model-gateway | 上游 Key |
+
+## Admin UI（React）
+
+构建并挂载到 control-plane `/admin-ui/`：
+
+```bash
+cd lenlion_platform/web
+npm ci
+npm run build
+cd ..
+uv run pytest tests/test_admin_api.py tests/test_static_ui.py -q
+docker compose up -d control-plane
+# 浏览器打开 http://127.0.0.1:8080/admin-ui/
+```
+
+Admin token 仅在浏览器内存中使用，不会写入 localStorage。
 
 ## 开发与测试
 

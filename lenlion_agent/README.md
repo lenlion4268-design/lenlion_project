@@ -9,7 +9,7 @@
 ## 能力概览
 
 - **CLI** — 终端交互式 Agent（prompt_toolkit）
-- **Web Chat** — Vue 3 浏览器聊天界面（`lenlion dashboard`）
+- **Web Dashboard** — React 19 浏览器管理平台（`lenlion dashboard`）
 - **Gateway** — 多平台消息接入（Telegram、Discord、Slack、微信、飞书等）
 - **Tools & Skills** — 终端、文件、浏览器、搜索、委派子 Agent 等
 - **Cron** — 自然语言定时任务
@@ -73,7 +73,7 @@ lenlion_agent/
 ├── run_agent.py      # Agent 核心循环
 ├── hermes_cli/       # CLI + FastAPI Web 服务
 ├── gateway/          # 消息网关
-├── web/              # Vue 3 聊天前端
+├── web/              # React 19 管理平台前端
 ├── tui_gateway/      # WebSocket JSON-RPC 聊天后端
 ├── agent/ tools/ plugins/ skills/ cron/ tests/
 └── ...

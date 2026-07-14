@@ -22,3 +22,6 @@ packages = ["control_plane", "model_gateway"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+  "postgres_smoke: real Postgres dual-init + shared db layer (requires LENLION_PLATFORM_POSTGRES_SMOKE=1)",
+]

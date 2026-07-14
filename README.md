@@ -72,10 +72,10 @@ Lenlion Platform 按阶段交付，规格见 [docs/PLATFORM_EXECUTION_PLAN.md](.
 | 范围 | 常用命令 |
 |------|----------|
 | Agent | `cd lenlion_agent && uv run pytest` · `uv run ruff check .` |
-| Platform | `cd lenlion_platform && uv run pytest -q` |
+| Platform | `cd lenlion_platform && uv run pytest -q -m "not postgres_smoke"`（CI 另跑 Postgres smoke） |
 | Novel Generator | 见 [Novel_Generator/README.md](./Novel_Generator/README.md) |
 
-根目录 [`.github/workflows/`](./.github/workflows/) 主要为 `lenlion_agent` 提供测试、lint、锁文件校验与 PyPI 发布流水线；Platform 与 Novel Generator 的 CI 可随各子项目演进逐步补齐。
+根目录 [`.github/workflows/`](./.github/workflows/) 为 `lenlion_agent` 提供测试、lint、锁文件校验与 PyPI 发布流水线；`platform-tests.yml` 覆盖 `lenlion_platform` 内存单测与真实 Postgres dual-init smoke。Novel Generator 的 CI 可随子项目演进补齐。
 
 ## 文档索引
 

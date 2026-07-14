@@ -92,9 +92,14 @@ Admin token 仅在浏览器内存中使用，不会写入 localStorage。
 ```bash
 cd lenlion_platform
 uv lock
-uv run pytest -q
-docker compose up -d
+uv run pytest -q -m "not postgres_smoke"
+docker compose up -d postgres
+# 真实 dual-init smoke（需 pgvector Postgres）：
+export DATABASE_URL="postgresql://lenlion:lenlion@127.0.0.1:5432/lenlion"
+LENLION_PLATFORM_POSTGRES_SMOKE=1 uv run pytest -q -m postgres_smoke
 ```
+
+CI：根目录 [`.github/workflows/platform-tests.yml`](../.github/workflows/platform-tests.yml)。
 
 ## 路线图
 

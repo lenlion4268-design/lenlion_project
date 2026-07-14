@@ -692,7 +692,7 @@ class TestMentionPatterns:
 
     def test_pattern_matches_text(self, monkeypatch):
         adapter = _make_gating_adapter(
-            monkeypatch, extra={"mention_patterns": ["^hermes"]}
+            monkeypatch, extra={"mention_patterns": ["^lenlion"]}
         )
         assert adapter._message_matches_mention_patterns("lenlion please help") is True
         assert adapter._message_matches_mention_patterns("please lenlion help") is False
@@ -761,7 +761,7 @@ class TestShouldProcessMessage:
     def test_group_accepted_when_text_matches_wake_word(self, monkeypatch):
         adapter = _make_gating_adapter(
             monkeypatch,
-            extra={"require_mention": True, "mention_patterns": ["^hermes"]},
+            extra={"require_mention": True, "mention_patterns": ["^lenlion"]},
         )
         msg = MagicMock(is_in_at_list=False)
         assert adapter._should_process_message(msg, "lenlion help", is_group=True, chat_id="grp1") is True

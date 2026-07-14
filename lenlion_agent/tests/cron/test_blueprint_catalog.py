@@ -226,6 +226,7 @@ class TestCommandHandler:
 
 
 class TestDocsGenerator:
+    @pytest.mark.skip(reason="upstream website generator was removed from the Lenlion fork")
     def test_generator_emits_valid_index(self, tmp_path):
         # The generator imports the catalog and writes a flat JSON array.
         import importlib.util

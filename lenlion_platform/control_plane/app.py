@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, Header, HTTPException, status
+from fastapi import FastAPI, Header, HTTPException, status
 
 from control_plane import store
 from control_plane.admin import router as admin_router

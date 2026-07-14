@@ -1,0 +1,13 @@
+.reasoning {
+  margin: 0 1.25rem;
+  padding: 0.5rem 0.75rem;
+  background: #1e293b;
+  border-radius: 8px;
+  font-size: 0.8rem;
+}
+
+.reasoning pre {
+  margin: 0.5rem 0 0;
+  white-space: pre-wrap;
+  color: var(--text-muted);
+}

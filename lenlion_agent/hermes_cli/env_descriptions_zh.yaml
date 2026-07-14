@@ -1,0 +1,218 @@
+# 环境变量中文说明（Web 密钥页）
+# Keys are env var names; values are Chinese descriptions for display.language=zh
+AGENT_BROWSER_ENGINE: 本地模式浏览器引擎：auto（默认 Chrome）、lightpanda（更快，无截图）、chrome
+AIRTABLE_API_KEY: Airtable 个人访问令牌（`airtable` 技能使用）
+ALIBABA_CODING_PLAN_API_KEY: 阿里云 Coding Plan API 密钥
+ALIBABA_CODING_PLAN_BASE_URL: 阿里云 Coding Plan 基础 URL 覆盖
+ANTHROPIC_API_KEY: Anthropic API 密钥
+ANTHROPIC_TOKEN: Anthropic API 密钥
+API_SERVER_ENABLED: 启用 OpenAI 兼容 API 服务器（true/false），供 Open WebUI、LobeChat 等前端连接
+API_SERVER_HOST: API 服务器绑定地址（默认 127.0.0.1）。即使仅监听回环地址也须设置 API_SERVER_KEY
+API_SERVER_KEY: API 服务器鉴权 Bearer 令牌。启用 API 服务器时必填，未设置则拒绝启动
+API_SERVER_MODEL_NAME: /v1/models 对外公布的模型名。默认为 profile 名（默认 profile 为 hermes-agent）。多用户 OpenWebUI 场景有用
+API_SERVER_PORT: API 服务器端口（默认 8642）
+ARCEEAI_API_KEY: Arcee AI API 密钥
+ARCEE_BASE_URL: Arcee AI 基础 URL 覆盖
+AWS_PROFILE: Bedrock 鉴权用的 AWS 命名配置文件（来自 ~/.aws/credentials）
+AWS_REGION: AWS Bedrock 调用区域（如 us-east-1、eu-central-1）
+AZURE_FOUNDRY_API_KEY: Azure Foundry API 密钥（自定义 Azure 端点）
+AZURE_FOUNDRY_BASE_URL: Azure Foundry 基础 URL（通过 lenlion model 配置端点专属参数）
+BLUEBUBBLES_ALLOWED_USERS: 允许使用机器人的 iMessage 地址（邮箱或电话，逗号分隔）
+BLUEBUBBLES_ALLOW_ALL_USERS: 允许所有 BlueBubbles 用户（无需白名单）
+BLUEBUBBLES_PASSWORD: BlueBubbles 服务器密码（BlueBubbles Server → 设置 → API）
+BLUEBUBBLES_SERVER_URL: BlueBubbles 服务器 URL，用于 iMessage 集成（如 http://192.168.1.10:1234）
+BRAVE_SEARCH_API_KEY: Brave Search API 订阅令牌（免费额度：2000 次/月）
+BROWSERBASE_API_KEY: Browserbase API 密钥（云端浏览器，可选——本地浏览器无需此密钥）
+BROWSERBASE_PROJECT_ID: Browserbase 项目 ID（可选——仅云端浏览器需要）
+BROWSER_USE_API_KEY: Browser Use API 密钥（云端浏览器，可选——本地浏览器无需此密钥）
+CAMOFOX_URL: Camofox 反检测浏览器服务 URL（如 http://localhost:9377）
+CLAUDE_CODE_OAUTH_TOKEN: Anthropic API 密钥
+DASHSCOPE_API_KEY: 阿里云 DashScope API 密钥（通义千问及多模型）
+DASHSCOPE_BASE_URL: 自定义 DashScope 基础 URL（默认：coding-intl OpenAI 兼容端点）
+DEEPSEEK_API_KEY: DeepSeek API 密钥（直连 DeepSeek）
+DEEPSEEK_BASE_URL: 自定义 DeepSeek API 基础 URL（高级）
+DISCORD_ALLOWED_USERS: 允许使用机器人的 Discord 用户 ID（逗号分隔）
+DISCORD_ALLOW_ALL_USERS: 允许任意 Discord 用户触发机器人（仅开发环境）
+DISCORD_BOT_TOKEN: Discord 开发者门户机器人令牌
+DISCORD_HOME_CHANNEL: 定时任务/通知投递的默认频道 ID
+DISCORD_HOME_CHANNEL_NAME: Discord 主频道显示名称
+DISCORD_REPLY_TO_MODE: Discord 回复线程模式：off（无引用）、first（仅首条回复，默认）、all（每条分片均回复）
+ELEVENLABS_API_KEY: ElevenLabs API 密钥（高品质 TTS 与 Scribe 转写）
+EXA_API_KEY: Exa API 密钥（AI 原生网页搜索与内容提取）
+FAL_KEY: FAL API 密钥（图像与视频生成）
+FIRECRAWL_API_KEY: Firecrawl API 密钥（网页搜索与抓取）
+FIRECRAWL_API_URL: 自托管 Firecrawl 实例的 API URL（可选）
+FIRECRAWL_BROWSER_TTL: Firecrawl 浏览器会话 TTL（秒，可选，默认 300）
+FIRECRAWL_GATEWAY_URL: Firecrawl 工具网关源站覆盖（仅 Nous 订阅用户，可选）
+GATEWAY_ALLOW_ALL_USERS: 允许所有用户与消息机器人交互（true/false，默认 false）
+GATEWAY_PROXY_KEY: 远程 Hermes API 服务器代理模式的 Bearer 令牌（须与远端 API_SERVER_KEY 一致）
+GATEWAY_PROXY_URL: 远程 Hermes API 服务器 URL（代理模式：网关仅处理平台 I/O，代理工作委托给远端）。亦可通过 config.yaml 的 gateway.proxy_url 配置
+GEMINI_API_KEY: Google AI Studio API 密钥（GOOGLE_API_KEY 的别名）
+GEMINI_BASE_URL: Google AI Studio 基础 URL 覆盖
+GITHUB_TOKEN: GitHub 令牌（Skills Hub 更高 API 限额与技能发布）
+GLM_API_KEY: Z.AI / GLM API 密钥（亦识别为 ZAI_API_KEY / Z_AI_API_KEY）
+GLM_BASE_URL: Z.AI / GLM 基础 URL 覆盖
+GMI_API_KEY: GMI Cloud API 密钥
+GMI_BASE_URL: GMI Cloud 基础 URL 覆盖
+GOOGLE_API_KEY: Google AI Studio API 密钥（亦识别为 GEMINI_API_KEY）
+GOOGLE_CHAT_ALLOWED_USERS: 允许与机器人交互的用户邮箱（逗号分隔）
+GOOGLE_CHAT_HOME_CHANNEL: 定时任务/通知投递的默认空间（如 spaces/AAAA...）
+GOOGLE_CHAT_PROJECT_ID: 托管 Chat 事件 Pub/Sub 主题的 GCP 项目 ID。回退到 GOOGLE_CLOUD_PROJECT
+GOOGLE_CHAT_SERVICE_ACCOUNT_JSON: 服务账号 JSON 密钥路径（或内联 JSON）。留空则使用 Cloud Run/GCE 的应用默认凭据
+GOOGLE_CHAT_SUBSCRIPTION_NAME: 完整 Pub/Sub 订阅路径：projects/<proj>/subscriptions/<sub>。旧别名：GOOGLE_CHAT_SUBSCRIPTION
+HASS_TOKEN: Home Assistant 长期访问令牌
+HASS_URL: Home Assistant 基础 URL（默认 http://homeassistant.local:8123）
+HERMES_EPHEMERAL_SYSTEM_PROMPT: API 调用时注入的临时系统提示词（不持久化到会话）
+HERMES_GEMINI_CLIENT_ID: google-gemini-cli 的 Google OAuth 客户端 ID（可选；默认使用 Google 公开 gemini-cli 客户端）
+HERMES_GEMINI_CLIENT_SECRET: google-gemini-cli 的 Google OAuth 客户端密钥（可选）
+HERMES_GEMINI_PROJECT_ID: 付费 Gemini 套餐的 GCP 项目 ID（免费套餐自动创建）
+HERMES_LANGFUSE_BASE_URL: Langfuse 服务 URL（默认：https://cloud.langfuse.com）
+HERMES_LANGFUSE_PUBLIC_KEY: Langfuse 项目公钥（pk-lf-...）
+HERMES_LANGFUSE_SECRET_KEY: Langfuse 项目密钥（sk-lf-...）
+HERMES_PREFILL_MESSAGES_FILE: 临时预填消息 JSON 文件路径（用于 few-shot 引导）
+HERMES_QWEN_BASE_URL: Qwen Portal 基础 URL 覆盖（默认：https://portal.qwen.ai/v1）
+HERMES_SIMPLEX_TEXT_BATCH_DELAY: 入站文本消息合并静默期（秒，默认 0.8），与 Telegram 文本批处理相同
+HF_BASE_URL: Hugging Face Inference Providers 基础 URL 覆盖
+HF_TOKEN: Hugging Face 令牌（通过 router.huggingface.co 访问 20+ 开源模型）
+HONCHO_API_KEY: Honcho API 密钥（AI 原生持久化记忆）
+HONCHO_BASE_URL: 自托管 Honcho 实例基础 URL（无需 API 密钥）
+IRC_ALLOWED_USERS: 允许与机器人对话的 IRC 昵称（逗号分隔）
+IRC_ALLOW_ALL_USERS: 允许频道内任何人对话（仅开发环境）
+IRC_CHANNEL: '加入的 IRC 频道（如 #lenlion）'
+IRC_HOME_CHANNEL: 定时任务/通知投递频道（默认 IRC_CHANNEL）
+IRC_NICKNAME: IRC 机器人昵称（默认 hermes-bot）
+IRC_NICKSERV_PASSWORD: NickServ 昵称认证密码
+IRC_PORT: IRC 服务器端口（默认 TLS 6697，非 TLS 6667）
+IRC_SERVER: IRC 服务器主机名（如 irc.libera.chat）
+IRC_SERVER_PASSWORD: IRC 服务器密码（如需要）
+IRC_USE_TLS: IRC 连接使用 TLS（1/true/yes 启用，6697 端口默认 true）
+KILOCODE_API_KEY: Kilocode API 密钥
+KIMI_API_KEY: Kimi / Moonshot API 密钥
+KIMI_BASE_URL: Kimi / Moonshot 基础 URL 覆盖
+KIMI_CN_API_KEY: Kimi / Moonshot 中国区 API 密钥
+KIMI_CODING_API_KEY: Kimi Coding API 密钥
+KREA_API_KEY: Krea API 密钥（Krea 2 图像生成 Medium + Large）
+LINEAR_API_KEY: Linear 个人 API 密钥（`linear` 技能使用）
+LINE_ALLOWED_GROUPS: 机器人响应的 LINE 群组 ID（C 前缀，逗号分隔）
+LINE_ALLOWED_ROOMS: 机器人响应的 LINE 房间 ID（R 前缀，逗号分隔）
+LINE_ALLOWED_USERS: 允许私信机器人的 LINE 用户 ID（U 前缀，逗号分隔）
+LINE_ALLOW_ALL_USERS: 允许任意 LINE 用户对话（仅开发环境，禁用白名单）
+LINE_CHANNEL_ACCESS_TOKEN: LINE 频道长期访问令牌（LINE Developers Console > Messaging API > Channel access token）
+LINE_CHANNEL_SECRET: LINE 频道密钥（用于 HMAC-SHA256 Webhook 签名校验）
+LINE_HOME_CHANNEL: 定时任务/通知投递的默认用户/群组/房间 ID
+LINE_HOST: Webhook 绑定主机（默认 0.0.0.0）
+LINE_PORT: Webhook 监听端口（默认 8646）
+LINE_PUBLIC_URL: 向 LINE 提供图片/音视频的可公开 HTTPS 基础 URL。绑定地址不可直达时发送媒体必填
+LINE_SLOW_RESPONSE_THRESHOLD: 慢 LLM 回帖按钮触发秒数（默认 45；设 0 禁用并始终 Push 回退）
+LM_API_KEY: LM Studio Bearer 令牌（用于启用鉴权的本地服务）
+LM_BASE_URL: LM Studio 基础 URL 覆盖
+MATRIX_ACCESS_TOKEN: Matrix 访问令牌（优先于密码登录）
+MATRIX_ALLOWED_USERS: 允许使用机器人的Matrix user IDs（逗号分隔） (@user:server format)
+MATRIX_AUTO_THREAD: Auto-create threads for messages in Matrix rooms (默认： true)
+MATRIX_DEVICE_ID: 稳定的 Matrix 设备 ID，用于 E2EE 跨重启持久化（如 HERMES_BOT）
+MATRIX_DM_AUTO_THREAD: Matrix 私信自动创建话题线程（默认 false）
+MATRIX_FREE_RESPONSE_ROOMS: 允许无需 @提及 即回复的 Matrix 房间 ID（逗号分隔）
+MATRIX_HOMESERVER: Matrix 主服务器 URL（如 https://matrix.example.org）
+MATRIX_RECOVERY_KEY: Matrix 恢复密钥，用于设备密钥轮换后的交叉签名验证（来自 Element：设置 → 安全 → 恢复密钥）
+MATRIX_REQUIRE_MENTION: Matrix 房间内需 @提及 才回复（默认 true）。设为 false 则回复所有消息
+MATRIX_USER_ID: Matrix 用户 ID（如 @lenlion:example.org）
+MATTERMOST_ALLOWED_CHANNELS: 若设置，机器人仅在这些频道响应（白名单）
+MATTERMOST_ALLOWED_USERS: 允许使用机器人的 Mattermost 用户 ID（逗号分隔）
+MATTERMOST_ALLOW_ALL_USERS: 允许任意 Mattermost 用户触发机器人（仅开发环境）
+MATTERMOST_FREE_RESPONSE_CHANNELS: 无需 @提及 即回复的 Mattermost 频道 ID（逗号分隔）
+MATTERMOST_HOME_CHANNEL: 定时任务/通知投递的默认频道 ID
+MATTERMOST_REPLY_MODE: 回复方式：thread（嵌套）或 off（平铺），默认 off
+MATTERMOST_REQUIRE_MENTION: Mattermost 频道内需 @提及（默认 true）。false 则回复所有消息
+MATTERMOST_TOKEN: Mattermost 机器人令牌或个人访问令牌
+MATTERMOST_URL: Mattermost 服务器 URL（如 https://mm.example.com）
+MINIMAX_API_KEY: MiniMax API 密钥（国际版）
+MINIMAX_BASE_URL: MiniMax 基础 URL 覆盖
+MINIMAX_CN_API_KEY: MiniMax API 密钥（中国区端点）
+MINIMAX_CN_BASE_URL: MiniMax（中国区）基础 URL 覆盖
+MISTRAL_API_KEY: Mistral API 密钥（Voxtral TTS 与语音转写）
+NOTION_API_KEY: Notion 集成令牌（`notion` 技能使用）
+NOUS_BASE_URL: Nous Portal 基础 URL 覆盖
+NOVITA_API_KEY: NovitaAI API 密钥
+NOVITA_BASE_URL: NovitaAI 基础 URL 覆盖
+NTFY_ALLOWED_USERS: 允许的主题名白名单（逗号分隔）
+NTFY_ALLOW_ALL_USERS: 允许任意主题对话（仅开发环境，禁用白名单）
+NTFY_HOME_CHANNEL: 定时任务/通知投递的默认主题
+NTFY_HOME_CHANNEL_NAME: 主频道人类可读标签（默认与主题名相同）
+NTFY_MARKDOWN: '回复是否带 X-Markdown: true 头（true/false，默认 false）'
+NTFY_PUBLISH_TOPIC: 发布回复的主题（默认 NTFY_TOPIC）
+NTFY_SERVER_URL: ntfy 服务器 URL（默认 https://ntfy.sh）
+NTFY_TOKEN: Bearer 令牌或 Basic 认证的 user:pass（可选）
+NTFY_TOPIC: 订阅的主题名（如 hermes-in）
+NVIDIA_API_KEY: NVIDIA NIM API 密钥（build.nvidia.com 或本地 NIM 端点）
+NVIDIA_BASE_URL: NVIDIA NIM 基础 URL 覆盖（如本地 NIM：http://localhost:8000/v1）
+OLLAMA_API_KEY: Ollama Cloud API 密钥（ollama.com 云端托管开源模型）
+OLLAMA_BASE_URL: Ollama Cloud 基础 URL 覆盖（默认：https://ollama.com/v1）
+OPENCODE_GO_API_KEY: OpenCode Go API 密钥（$10/月订阅开放模型）
+OPENCODE_GO_BASE_URL: OpenCode Go 基础 URL 覆盖
+OPENCODE_ZEN_API_KEY: OpenCode Zen API 密钥（按量付费访问精选模型）
+OPENCODE_ZEN_BASE_URL: OpenCode Zen 基础 URL 覆盖
+OPENROUTER_API_KEY: OpenRouter API 密钥（用于视觉分析、网页抓取辅助与 MoA）
+PARALLEL_API_KEY: Parallel API 密钥（AI 原生网页搜索与提取）
+PHOTON_ALLOWED_USERS: 允许对话的 E.164 电话号码（逗号分隔）
+PHOTON_ALLOW_ALL_USERS: 允许任意发送者触发机器人（仅开发环境，禁用白名单）
+PHOTON_DASHBOARD_HOST: Photon Dashboard API 主机（默认 https://app.photon.codes）
+PHOTON_HOME_CHANNEL: 定时任务/通知投递的默认 Photon 目标：Spectrum 空间 ID、DM GUID 或 E.164 号码
+PHOTON_HOME_CHANNEL_NAME: 主频道人类可读标签
+PHOTON_MARKDOWN: 以 Markdown 发送代理回复（iMessage 原生渲染，其他 Spectrum 平台降级为纯文本，默认 true）
+PHOTON_MENTION_PATTERNS: 群聊提及唤醒词正则（JSON 列表或逗号/换行分隔；默认 Hermes 唤醒词）
+PHOTON_NODE_BIN: node 二进制路径（默认 shutil.which('node')）
+PHOTON_PROJECT_ID: Spectrum 项目 ID（spectrumProjectId；由 lenlion photon setup 设置）
+PHOTON_PROJECT_SECRET: 与 Spectrum 项目 ID 配对的项目密钥（由 lenlion photon setup 设置）
+PHOTON_REACTIONS: 以 Tapback 👀/👍/👎 显示处理状态，并将机器人消息上的 tapback 路由给代理（默认 false）
+PHOTON_REQUIRE_MENTION: 群聊消息须匹配提及唤醒词才处理（默认 false）
+PHOTON_SIDECAR_AUTOSTART: 连接时启动 Node sidecar（默认 true）
+PHOTON_SIDECAR_PORT: Node sidecar 控制与入站通道回环端口（默认 8789）
+PHOTON_SPECTRUM_HOST: Photon Spectrum API 主机（默认 https://spectrum.photon.codes）
+PHOTON_TELEMETRY: 在 sidecar 中启用 Spectrum SDK 遥测（默认 false；可用 lenlion photon telemetry on|off 切换）
+QQBOT_HOME_CHANNEL: 默认QQ channel/group for cron delivery and notifications
+QQBOT_HOME_CHANNEL_NAME: QQ 主频道显示名称
+QQ_ALLOWED_USERS: 允许使用机器人的 QQ 用户 ID（逗号分隔）
+QQ_ALLOW_ALL_USERS: 允许所有 QQ 用户（无需白名单，true/false）
+QQ_APP_ID: QQ 开放平台机器人 App ID（q.qq.com）
+QQ_CLIENT_SECRET: QQ 开放平台机器人 Client Secret
+QQ_GROUP_ALLOWED_USERS: 允许与机器人交互的 QQ 群 ID（逗号分隔）
+QQ_SANDBOX: 启用 QQ 沙箱模式用于开发测试（true/false）
+SEARXNG_URL: 自托管 SearXNG 实例 URL（免费网页搜索）
+SIMPLEX_ALLOWED_USERS: 允许对话的 SimpleX 联系人 ID（逗号分隔）
+SIMPLEX_ALLOW_ALL_USERS: 允许任意联系人对话（仅开发环境）
+SIMPLEX_AUTO_ACCEPT: 自动接受入站联系人请求（默认 true）
+SIMPLEX_GROUP_ALLOWED: 机器人参与的 SimpleX 群组 ID（逗号分隔或 * 允许任意群）。省略则忽略群消息
+SIMPLEX_HOME_CHANNEL: 定时任务/通知投递的默认联系人/群组 ID
+SIMPLEX_HOME_CHANNEL_NAME: 主频道人类可读标签（默认与 ID 相同）
+SIMPLEX_WS_URL: simplex-chat 守护进程 WebSocket URL（如 ws://127.0.0.1:5225）
+SLACK_APP_TOKEN: Slack 应用级令牌（xapp-），用于 Socket Mode。从 Basic Information → App-Level Tokens 获取
+SLACK_BOT_TOKEN: Slack 机器人令牌（xoxb-）。安装应用后从 OAuth & Permissions 获取。所需权限：chat:write、app_mentions:read、channels:history 等
+STEPFUN_API_KEY: StepFun Step Plan API 密钥
+STEPFUN_BASE_URL: StepFun Step Plan 基础 URL 覆盖
+SUDO_PASSWORD: 需要 root 的终端命令所用 sudo 密码；设为空字符串可尝试无密码执行而不弹窗
+TAVILY_API_KEY: Tavily API 密钥（AI 原生网页搜索与提取）
+TEAMS_ALLOWED_USERS: 允许对话的 Teams 用户 ID / UPN（逗号分隔）
+TEAMS_ALLOW_ALL_USERS: 允许任意 Teams 用户触发机器人（仅开发环境）
+TEAMS_CLIENT_ID: Azure AD 应用程序（Bot Framework）客户端 ID
+TEAMS_CLIENT_SECRET: Azure AD 应用程序客户端密钥
+TEAMS_HOME_CHANNEL: 定时任务/通知投递的默认聊天/频道 ID
+TEAMS_HOME_CHANNEL_NAME: Teams 主频道显示名称
+TEAMS_PORT: Webhook 监听端口（Bot Framework 默认 3978）
+TEAMS_TENANT_ID: 托管机器人应用的 Azure AD 租户 ID
+TELEGRAM_ALLOWED_USERS: 允许使用机器人的 Telegram 用户 ID（逗号分隔，可通过 @userinfobot 获取）
+TELEGRAM_BOT_TOKEN: 来自 @BotFather 的 Telegram 机器人令牌
+TELEGRAM_PROXY: Telegram 连接代理 URL（覆盖 HTTPS_PROXY），支持 http://、https://、socks5://
+TENOR_API_KEY: Tenor API 密钥（GIF 搜索，`gif-search` 技能使用）
+TOOL_GATEWAY_DOMAIN: 工具网关域名后缀（仅 Nous 订阅用户，用于派生厂商主机，如 nousresearch.com → firecrawl-gateway.nousresearch.com）
+TOOL_GATEWAY_SCHEME: 工具网关 URL 协议（仅 Nous 订阅用户，默认 https，本地测试可设 http）
+TOOL_GATEWAY_USER_TOKEN: 工具网关请求的 Nous 订阅访问令牌（可选；否则从 Hermes 鉴权存储读取）
+VOICE_TOOLS_OPENAI_KEY: OpenAI API 密钥（Whisper 语音转写与 OpenAI TTS）
+WEBHOOK_ENABLED: 启用 Webhook 平台适配器（接收 GitHub、GitLab 等事件）
+WEBHOOK_PORT: Webhook HTTP 服务端口（默认 8644）
+WEBHOOK_SECRET: Webhook 签名校验全局 HMAC 密钥（可在 config.yaml 按路由覆盖）
+XAI_API_KEY: xAI API 密钥
+XAI_BASE_URL: xAI 基础 URL 覆盖
+XIAOMI_API_KEY: 小米 MiMo API 密钥（mimo-v2.5-pro、mimo-v2.5 等模型）
+XIAOMI_BASE_URL: 小米 MiMo 基础 URL 覆盖（默认：https://api.xiaomimimo.com/v1）
+ZAI_API_KEY: Z.AI API 密钥（GLM_API_KEY 的别名）
+Z_AI_API_KEY: Z.AI API 密钥（GLM_API_KEY 的别名）

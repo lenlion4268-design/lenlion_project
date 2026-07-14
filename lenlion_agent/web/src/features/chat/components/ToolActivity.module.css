@@ -1,0 +1,45 @@
+.tools {
+  margin: 0 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.tool {
+  padding: 0.5rem 0.75rem;
+  background: #1e293b;
+  border-radius: 8px;
+  font-size: 0.8rem;
+}
+
+.name {
+  font-weight: 600;
+  margin-right: 0.5rem;
+}
+
+.status {
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.running,
+.generating {
+  color: #93c5fd;
+}
+
+.done {
+  color: var(--success);
+}
+
+.error {
+  color: var(--danger);
+}
+
+.args,
+.result {
+  margin: 0.35rem 0 0;
+  white-space: pre-wrap;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}

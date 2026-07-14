@@ -6,9 +6,34 @@ import logging
 import os
 import re
 from urllib.parse import urlparse
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 logger = logging.getLogger(__name__)
+
+# Generic token-provider registry. Named plugins (e.g. lenlion_edge) inject
+# callables at register() time; core never imports plugin modules by name.
+_RUNTIME_TOKEN_PROVIDERS: Dict[str, Callable[[], str]] = {}
+_LENLION_CLOUD_NAMES = frozenset({"lenlion-cloud", "lenlion", "lenlion-platform"})
+
+
+def register_runtime_token_provider(provider_name: str, getter: Callable[[], str]) -> None:
+    """Register a zero-arg callable that returns a bearer token for *provider_name*."""
+    key = str(provider_name or "").strip().lower()
+    if not key:
+        raise ValueError("provider_name is required")
+    if not callable(getter):
+        raise TypeError("getter must be callable")
+    _RUNTIME_TOKEN_PROVIDERS[key] = getter
+
+
+def get_runtime_token_provider(provider_name: str) -> Optional[Callable[[], str]]:
+    """Return the registered token getter for *provider_name*, or None."""
+    return _RUNTIME_TOKEN_PROVIDERS.get(str(provider_name or "").strip().lower())
+
+
+def clear_runtime_token_providers() -> None:
+    """Test helper — wipe the token-provider registry."""
+    _RUNTIME_TOKEN_PROVIDERS.clear()
 
 from hermes_cli import auth as auth_mod
 from agent.credential_pool import CredentialPool, PooledCredential, get_custom_provider_pool_key, load_pool
@@ -987,6 +1012,62 @@ def _resolve_openrouter_runtime(
     }
 
 
+def _resolve_lenlion_cloud_runtime(
+    *,
+    requested_provider: str,
+    explicit_api_key: Optional[str] = None,
+    explicit_base_url: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Resolve Lenlion managed model-gateway credentials.
+
+    Reads ``lenlion_platform.model_gateway_url`` for the OpenAI-compatible
+    base URL (``{url}/v1``). ``api_key`` is a zero-arg callable taken from
+    the generic runtime token-provider registry (key ``lenlion-cloud``).
+    Missing registration or lease yields a fail-closed exception on call.
+    """
+    explicit_api_key_clean = str(explicit_api_key or "").strip()
+    explicit_base_url_clean = str(explicit_base_url or "").strip().rstrip("/")
+
+    config = load_config()
+    platform = config.get("lenlion_platform") if isinstance(config, dict) else None
+    platform = platform if isinstance(platform, dict) else {}
+
+    gateway_url = explicit_base_url_clean or str(
+        platform.get("model_gateway_url") or ""
+    ).strip().rstrip("/")
+    if not gateway_url:
+        raise AuthError(
+            "Lenlion Cloud requires model_gateway_url. Set lenlion_platform."
+            "model_gateway_url in config.yaml (control_plane_url is separate)."
+        )
+
+    base_url = gateway_url if gateway_url.endswith("/v1") else f"{gateway_url}/v1"
+
+    if explicit_api_key_clean:
+        api_key: Any = explicit_api_key_clean
+    else:
+        getter = get_runtime_token_provider("lenlion-cloud")
+        if getter is None:
+            def _missing_token() -> str:
+                raise AuthError(
+                    "Lenlion Cloud token provider is not registered. "
+                    "Enable the lenlion_edge plugin and enroll this node."
+                )
+
+            api_key = _missing_token
+        else:
+            api_key = getter
+
+    return {
+        "provider": "lenlion-cloud",
+        "api_mode": "chat_completions",
+        "base_url": base_url.rstrip("/"),
+        "api_key": api_key,
+        "source": "lenlion-cloud",
+        "requested_provider": requested_provider,
+    }
+
+
 def _resolve_azure_foundry_runtime(
     *,
     requested_provider: str,
@@ -1259,6 +1340,13 @@ def _resolve_explicit_runtime(
             explicit_base_url=explicit_base_url,
         )
 
+    if provider in _LENLION_CLOUD_NAMES or requested_provider in _LENLION_CLOUD_NAMES:
+        return _resolve_lenlion_cloud_runtime(
+            requested_provider=requested_provider or provider,
+            explicit_api_key=explicit_api_key,
+            explicit_base_url=explicit_base_url,
+        )
+
     pconfig = PROVIDER_REGISTRY.get(provider)
     if pconfig and pconfig.auth_type == "api_key":
         env_url = ""
@@ -1361,6 +1449,16 @@ def resolve_runtime_provider(
             target_model=target_model,
         )
         return azure_runtime
+
+    # Lenlion Cloud managed gateway: short-circuit before custom/openrouter
+    # fallbacks. Token comes from the generic runtime token-provider registry
+    # (injected by the lenlion_edge plugin); never hardcode a plugin import.
+    if requested_provider in _LENLION_CLOUD_NAMES:
+        return _resolve_lenlion_cloud_runtime(
+            requested_provider=requested_provider,
+            explicit_api_key=explicit_api_key,
+            explicit_base_url=explicit_base_url,
+        )
 
     custom_runtime = _resolve_named_custom_runtime(
         requested_provider=requested_provider,

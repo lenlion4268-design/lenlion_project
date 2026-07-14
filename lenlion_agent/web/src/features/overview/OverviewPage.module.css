@@ -1,0 +1,45 @@
+.grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.stats {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.label {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.value {
+  font-size: 1rem;
+}
+
+.ok {
+  color: var(--success);
+}
+
+.warn {
+  color: var(--warning);
+}
+
+.mono {
+  font-family: ui-monospace, monospace;
+  font-size: 0.8rem;
+  word-break: break-all;
+}

@@ -1,0 +1,3 @@
+[console_scripts]
+lenlion = hermes_cli.main:main
+lenlion-agent = run_agent:main

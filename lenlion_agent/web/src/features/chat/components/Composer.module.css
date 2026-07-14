@@ -1,0 +1,53 @@
+.composer {
+  border-top: 1px solid #334155;
+  padding: 0.75rem 1.25rem 1rem;
+  background: var(--bg-primary);
+}
+
+.composer textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 4rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: var(--border);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.actions button {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.send {
+  background: var(--accent);
+  color: white;
+}
+
+.send:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.stop {
+  background: #475569;
+  color: var(--text-primary);
+}
+
+.stop:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

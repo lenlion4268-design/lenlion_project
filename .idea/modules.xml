@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/lenlion-agent.iml" filepath="$PROJECT_DIR$/.idea/lenlion-agent.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/lenlion-platform.iml" filepath="$PROJECT_DIR$/.idea/lenlion-platform.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/lenlion-project.iml" filepath="$PROJECT_DIR$/.idea/lenlion-project.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/novel-generator-api.iml" filepath="$PROJECT_DIR$/.idea/novel-generator-api.iml" />
+    </modules>
+  </component>
+</project>

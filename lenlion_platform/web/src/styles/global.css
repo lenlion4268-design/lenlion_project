@@ -1,0 +1,102 @@
+@import './tokens.css';
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.page {
+  padding: 1.25rem 1.5rem;
+  overflow-y: auto;
+  height: 100%;
+}
+
+.btn {
+  padding: 0.45rem 0.9rem;
+  border-radius: 6px;
+  border: 1px solid #334155;
+  background: var(--accent-dark);
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+}
+
+.btn.danger {
+  background: #7f1d1d;
+}
+
+.panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.listItem {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.badge {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: #334155;
+}
+
+.badge.revoked {
+  background: #7f1d1d;
+  color: #fecaca;
+}
+
+.hint,
+.error {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.error {
+  color: var(--danger);
+}
+
+.login {
+  max-width: 420px;
+  margin: 4rem auto;
+  padding: 1.5rem;
+}
+
+.login label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.login input {
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #334155;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}

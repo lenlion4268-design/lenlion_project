@@ -4850,6 +4850,7 @@ skip_on_windows = pytest.mark.skipif(
 
 
 @skip_on_windows
+@pytest.mark.skip(reason="dashboard PTY/Ink TUI was removed from the Lenlion fork")
 class TestPtyWebSocket:
     @pytest.fixture(autouse=True)
     def _setup(self, monkeypatch, _isolate_hermes_home):
@@ -5188,6 +5189,7 @@ class TestPtyWebSocket:
         assert exc.value.code == 4400
 
 
+@pytest.mark.skip(reason="dashboard PTY/Ink TUI was removed from the Lenlion fork")
 def test_resolve_chat_argv_injects_gateway_ws_url(monkeypatch):
     import hermes_cli.main as cli_main
     import hermes_cli.web_server as ws

@@ -86,6 +86,10 @@ _SKIP_FILE_SUBSTRINGS = (
     "test_hyperliquid_skill",
     "test_youtube_quiz",
     "test_default_interface_resolution",  # Ink TUI removed in this fork
+    "test_pty_bridge",                     # dashboard PTY bridge removed
+    "test_memento_cards",                  # optional-skills package removed
+    "test_package_json_lazy_deps",         # root npm/browser bundle removed
+    "test_dockerfile_immutable_install",   # upstream immutable image replaced
 )
 
 # Per-file wall-clock cap. Override

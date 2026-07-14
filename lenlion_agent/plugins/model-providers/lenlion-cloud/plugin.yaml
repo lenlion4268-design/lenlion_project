@@ -1,0 +1,5 @@
+name: lenlion-cloud-provider
+kind: model-provider
+version: 1.0.0
+description: Lenlion managed model gateway
+author: Lenlion

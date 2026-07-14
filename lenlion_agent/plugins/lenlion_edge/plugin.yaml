@@ -1,0 +1,7 @@
+name: lenlion_edge
+version: "0.1.0"
+description: "Lenlion managed-edge lease cache and local high-risk tool gating."
+author: Lenlion
+hooks:
+  - on_session_start
+  - pre_tool_call

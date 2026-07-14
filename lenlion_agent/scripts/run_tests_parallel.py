@@ -98,6 +98,8 @@ _SKIP_FILE_SUBSTRINGS = (
     "test_windows_native_docs",            # upstream website removed
     "test_mini_swe_runner",                # mini-SWE runner removed
     "test_dockerfile_node_modules_perms",  # Ink TUI image contract removed
+    "test_tui_heap_sizing",                # Ink TUI runtime removed
+    "test_openclaw_migration",             # optional-skills migration removed
 )
 
 # Per-file wall-clock cap. Override

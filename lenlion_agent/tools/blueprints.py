@@ -56,7 +56,7 @@ class BlueprintError(ValueError):
 
 @dataclass
 class BlueprintSpec:
-    """Parsed ``metadata.hermes.blueprint`` automation spec for a skill."""
+    """Parsed Lenlion (or legacy Hermes) blueprint automation spec."""
 
     skill_name: str
     schedule: str
@@ -95,9 +95,10 @@ def _split_frontmatter(text: str) -> Optional[Dict[str, Any]]:
 def parse_blueprint(skill_md_text: str) -> Optional[BlueprintSpec]:
     """Extract a BlueprintSpec from a SKILL.md string, or None if not a blueprint.
 
-    A skill is a blueprint iff ``metadata.hermes.blueprint`` is a mapping containing
-    a non-empty ``schedule``. Raises BlueprintError if the block exists but is
-    structurally invalid (so a typo surfaces instead of silently no-op'ing).
+    A skill is a blueprint iff ``metadata.lenlion.blueprint`` (or the legacy
+    ``metadata.hermes.blueprint``) is a mapping containing a non-empty
+    ``schedule``. Raises BlueprintError if the block exists but is structurally
+    invalid (so a typo surfaces instead of silently no-op'ing).
     """
     fm = _split_frontmatter(skill_md_text)
     if not fm:
@@ -106,12 +107,14 @@ def parse_blueprint(skill_md_text: str) -> Optional[BlueprintSpec]:
     name = str(fm.get("name", "")).strip()
 
     meta = fm.get("metadata")
-    hermes = meta.get("hermes") if isinstance(meta, dict) else None
-    blueprint = hermes.get("blueprint") if isinstance(hermes, dict) else None
+    namespace = None
+    if isinstance(meta, dict):
+        namespace = meta.get("lenlion") or meta.get("hermes")
+    blueprint = namespace.get("blueprint") if isinstance(namespace, dict) else None
     if blueprint is None:
         return None
     if not isinstance(blueprint, dict):
-        raise BlueprintError("metadata.hermes.blueprint must be a mapping")
+        raise BlueprintError("metadata.lenlion.blueprint must be a mapping")
 
     schedule = str(blueprint.get("schedule", "")).strip()
     if not schedule:
@@ -247,7 +250,7 @@ def export_blueprint(job: Dict[str, Any], body: str, *, blueprint_name: Optional
     """Render a shareable blueprint SKILL.md from an existing cron job dict.
 
     The inverse of ``create_blueprint_job``: take a cron job a user already built
-    and emit a SKILL.md (with a ``metadata.hermes.blueprint`` block) they can hand
+    and emit a SKILL.md (with a ``metadata.lenlion.blueprint`` block) they can hand
     to ``lenlion skills publish`` to share. ``body`` is the plain-language
     description / instructions that become the SKILL.md body.
     """
@@ -288,7 +291,7 @@ def export_blueprint(job: Dict[str, Any], body: str, *, blueprint_name: Optional
         "version": "1.0.0",
         "license": "MIT",
         "metadata": {
-            "hermes": {
+            "lenlion": {
                 "tags": ["blueprint", "automation"],
                 "blueprint": blueprint_block,
             }

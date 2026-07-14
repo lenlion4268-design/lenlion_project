@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: lenlion-agent
-Version: 0.4.0
+Version: 0.5.0
 Summary: Lenlion AI agent — CLI, gateway, tools, skills, and cron scheduling (forked from Hermes Agent core)
 Author: Lenlion
 License-Expression: MIT
@@ -167,7 +167,7 @@ Dynamic: license-file
 
 # Lenlion Agent
 
-**版本：** `0.4.0` · PyPI 包名 `lenlion-agent`
+**版本：** `0.5.0` · PyPI 包名 `lenlion-agent`
 
 基于 [Hermes Agent](https://github.com/NousResearch/hermes-agent) 核心运行时的 AI Agent 项目。
 
@@ -176,7 +176,7 @@ Dynamic: license-file
 ## 能力概览
 
 - **CLI** — 终端交互式 Agent（prompt_toolkit）
-- **Web Chat** — Vue 3 浏览器聊天界面（`lenlion dashboard`）
+- **Web Dashboard** — React 19 浏览器管理平台（`lenlion dashboard`）
 - **Gateway** — 多平台消息接入（Telegram、Discord、Slack、微信、飞书等）
 - **Tools & Skills** — 终端、文件、浏览器、搜索、委派子 Agent 等
 - **Cron** — 自然语言定时任务
@@ -240,7 +240,7 @@ lenlion_agent/
 ├── run_agent.py      # Agent 核心循环
 ├── hermes_cli/       # CLI + FastAPI Web 服务
 ├── gateway/          # 消息网关
-├── web/              # Vue 3 聊天前端
+├── web/              # React 19 管理平台前端
 ├── tui_gateway/      # WebSocket JSON-RPC 聊天后端
 ├── agent/ tools/ plugins/ skills/ cron/ tests/
 └── ...

@@ -68,7 +68,25 @@ _DEFAULT_ROOTS = ["tests"]
 #                        ``docker build``,
 #                        so the build is guaranteed to die in fixture
 #                        setup. The dedicated job sidesteps both costs.
-_SKIP_PARTS = {"integration", "e2e", "docker"}
+#   tests/acp/         — Lenlion fork removed acp_adapter/
+_SKIP_PARTS = {"integration", "e2e", "docker", "acp"}
+
+# Filename substrings for tests targeting features this fork removed or
+# never migrated (upstream s6 Docker scripts, optional-skills packages).
+# Matched against the file stem (e.g. ``test_stage2_hook_puid_pgid``).
+_SKIP_FILE_SUBSTRINGS = (
+    "test_docker_home_override",
+    "test_docker_stage2",
+    "test_dockerfile_tini",
+    "test_stage2_hook_",
+    "test_cmd_update_docker",
+    "test_container_boot",
+    "test_evidence_store",
+    "test_telephony_skill",
+    "test_hyperliquid_skill",
+    "test_youtube_quiz",
+    "test_default_interface_resolution",  # Ink TUI removed in this fork
+)
 
 # Per-file wall-clock cap. Override
 # via --file-timeout or HERMES_TEST_FILE_TIMEOUT.
@@ -176,6 +194,8 @@ def _discover_files(roots: List[Path]) -> List[Path]:
         effective_skips = _SKIP_PARTS - root_skip_overrides
         for path in root.rglob("test_*.py"):
             if any(part in effective_skips for part in path.parts):
+                continue
+            if any(s in path.stem for s in _SKIP_FILE_SUBSTRINGS):
                 continue
             real = path.resolve()
             if real in seen:

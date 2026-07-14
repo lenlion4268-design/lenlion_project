@@ -397,8 +397,8 @@ hermes_cli/subcommands/version.py
 hermes_cli/subcommands/webhook.py
 hermes_cli/subcommands/whatsapp.py
 hermes_cli/web_dist/index.html
-hermes_cli/web_dist/assets/index-C8jcfO-a.js
-hermes_cli/web_dist/assets/index-DBHq2noD.css
+hermes_cli/web_dist/assets/index-DC3JAeUC.css
+hermes_cli/web_dist/assets/index-Dew5zTFs.js
 lenlion_agent.egg-info/PKG-INFO
 lenlion_agent.egg-info/SOURCES.txt
 lenlion_agent.egg-info/dependency_links.txt
@@ -481,6 +481,11 @@ plugins/kanban/dashboard/manifest.json
 plugins/kanban/dashboard/plugin_api.py
 plugins/kanban/dashboard/dist/index.js
 plugins/kanban/dashboard/dist/style.css
+plugins/lenlion_edge/__init__.py
+plugins/lenlion_edge/client.py
+plugins/lenlion_edge/lease_cache.py
+plugins/lenlion_edge/plugin.yaml
+plugins/lenlion_edge/protocol.py
 plugins/memory/__init__.py
 plugins/memory/byterover/README.md
 plugins/memory/byterover/__init__.py
@@ -543,6 +548,8 @@ plugins/model-providers/kilocode/__init__.py
 plugins/model-providers/kilocode/plugin.yaml
 plugins/model-providers/kimi-coding/__init__.py
 plugins/model-providers/kimi-coding/plugin.yaml
+plugins/model-providers/lenlion-cloud/__init__.py
+plugins/model-providers/lenlion-cloud/plugin.yaml
 plugins/model-providers/minimax/__init__.py
 plugins/model-providers/minimax/plugin.yaml
 plugins/model-providers/nous/__init__.py

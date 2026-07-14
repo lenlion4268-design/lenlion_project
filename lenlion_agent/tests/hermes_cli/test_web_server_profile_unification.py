@@ -514,6 +514,7 @@ class TestProfileScopedTelegramOnboarding:
         assert default_cfg.get("platforms", {}).get("telegram", {}).get("enabled") is not True
 
 
+@pytest.mark.skip(reason="dashboard Chat PTY was removed from the Lenlion fork")
 class TestProfileScopedChatPty:
     def test_chat_argv_scopes_hermes_home(self, isolated_profiles, monkeypatch):
         import hermes_cli.web_server as web_server

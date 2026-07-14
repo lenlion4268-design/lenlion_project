@@ -100,6 +100,8 @@ _SKIP_FILE_SUBSTRINGS = (
     "test_dockerfile_node_modules_perms",  # Ink TUI image contract removed
     "test_tui_heap_sizing",                # Ink TUI runtime removed
     "test_openclaw_migration",             # optional-skills migration removed
+    "test_darwinian_evolver_skill",        # optional-skills package removed
+    "test_desktop_mac_entitlements",       # Electron desktop app removed
 )
 
 # Per-file wall-clock cap. Override

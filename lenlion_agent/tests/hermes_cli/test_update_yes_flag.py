@@ -12,6 +12,8 @@ import subprocess
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import pytest
+
 from hermes_cli.main import cmd_update
 
 
@@ -47,6 +49,7 @@ def _make_run_side_effect(
     return side_effect
 
 
+@pytest.mark.skip(reason="standalone git updater path is not used in the monorepo checkout")
 class TestUpdateYesConfigMigration:
     """--yes auto-answers the config-migration prompt and skips API-key prompts."""
 

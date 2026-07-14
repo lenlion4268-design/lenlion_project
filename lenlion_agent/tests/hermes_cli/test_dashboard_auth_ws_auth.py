@@ -494,6 +494,7 @@ class TestWsHostOriginGuardOrigins:
         assert web_server._ws_host_origin_is_allowed(ws) is True
 
 
+@pytest.mark.skip(reason="PTY sidecar WebSockets were removed from the Lenlion fork")
 class TestSidecarUrl:
     def test_loopback_uses_session_token(self, loopback_app):
         url = web_server._build_sidecar_url("ch-1")
@@ -531,6 +532,7 @@ class TestSidecarUrl:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.skip(reason="PTY gateway WebSockets were removed from the Lenlion fork")
 class TestGatewayWsUrl:
     def test_loopback_uses_session_token(self, loopback_app):
         url = web_server._build_gateway_ws_url()

@@ -9,28 +9,28 @@ from hermes_cli import relaunch as relaunch_mod
 
 class TestResolveHermesBin:
     def test_prefers_absolute_argv0_when_executable(self, monkeypatch):
-        fake = "/nix/store/abc/bin/hermes"
+        fake = "/nix/store/abc/bin/lenlion"
         monkeypatch.setattr(sys, "argv", [fake])
         monkeypatch.setattr(relaunch_mod.os.path, "isfile", lambda p: p == fake)
         monkeypatch.setattr(relaunch_mod.os, "access", lambda p, mode: p == fake)
         assert relaunch_mod.resolve_hermes_bin() == fake
 
     def test_resolves_relative_argv0(self, monkeypatch, tmp_path):
-        fake = tmp_path / "hermes"
+        fake = tmp_path / "lenlion"
         fake.write_text("#!/bin/sh\n")
         fake.chmod(0o755)
         monkeypatch.setattr(sys, "argv", [str(fake.name)])
         monkeypatch.chdir(tmp_path)
-        # Ensure we don't accidentally match a real 'hermes' on PATH
+        # Ensure we don't accidentally match a real 'lenlion' on PATH
         monkeypatch.setattr(relaunch_mod.shutil, "which", lambda _name: None)
         assert relaunch_mod.resolve_hermes_bin() == str(fake)
 
     def test_falls_back_to_path_which(self, monkeypatch):
         monkeypatch.setattr(sys, "argv", ["-c"])  # not a real path
         monkeypatch.setattr(
-            relaunch_mod.shutil, "which", lambda name: "/usr/bin/hermes" if name == "hermes" else None
+            relaunch_mod.shutil, "which", lambda name: "/usr/bin/lenlion" if name == "lenlion" else None
         )
-        assert relaunch_mod.resolve_hermes_bin() == "/usr/bin/hermes"
+        assert relaunch_mod.resolve_hermes_bin() == "/usr/bin/lenlion"
 
     def test_returns_none_when_unresolvable(self, monkeypatch):
         monkeypatch.setattr(sys, "argv", ["-c"])
@@ -40,8 +40,8 @@ class TestResolveHermesBin:
 
 class TestExtractInheritedFlags:
     def test_extracts_tui_and_dev(self):
-        argv = ["--tui", "--dev", "chat"]
-        assert relaunch_mod._extract_inherited_flags(argv) == ["--tui", "--dev"]
+        argv = ["--tui", "--yolo", "chat"]
+        assert relaunch_mod._extract_inherited_flags(argv) == ["--yolo"]
 
     def test_extracts_profile_with_value(self):
         argv = ["--profile", "work", "chat"]
@@ -60,15 +60,15 @@ class TestExtractInheritedFlags:
 
     def test_skips_unknown_flags(self):
         argv = ["--foo", "bar", "--tui"]
-        assert relaunch_mod._extract_inherited_flags(argv) == ["--tui"]
+        assert relaunch_mod._extract_inherited_flags(argv) == []
 
     def test_does_not_consume_flag_like_value(self):
-        argv = ["--tui", "--resume", "abc123"]
-        assert relaunch_mod._extract_inherited_flags(argv) == ["--tui"]
+        argv = ["--yolo", "--resume", "abc123"]
+        assert relaunch_mod._extract_inherited_flags(argv) == ["--yolo"]
 
     def test_preserves_multiple_skills(self):
         argv = ["-s", "foo", "-s", "bar", "--tui"]
-        assert relaunch_mod._extract_inherited_flags(argv) == ["-s", "foo", "-s", "bar", "--tui"]
+        assert relaunch_mod._extract_inherited_flags(argv) == ["-s", "foo", "-s", "bar"]
 
 
 class TestInheritedFlagTable:
@@ -86,7 +86,7 @@ class TestInheritedFlagTable:
 
     def test_store_true_flags_do_not_take_value(self):
         table = dict(relaunch_mod._INHERITED_FLAGS_TABLE)
-        for flag in ["--tui", "--dev", "--yolo", "--ignore-user-config", "--ignore-rules"]:
+        for flag in ["--yolo", "--ignore-user-config", "--ignore-rules"]:
             assert table[flag] is False, f"{flag} should not take a value"
 
     def test_value_flags_take_value(self):
@@ -116,10 +116,10 @@ class TestBuildRelaunchArgv:
 
     def test_preserves_inherited_flags(self, monkeypatch):
         monkeypatch.setattr(relaunch_mod, "resolve_hermes_bin", lambda: "/usr/bin/hermes")
-        original = ["--tui", "--dev", "--profile", "work", "sessions", "browse"]
+        original = ["--tui", "--yolo", "--profile", "work", "sessions", "browse"]
         argv = relaunch_mod.build_relaunch_argv(["--resume", "abc"], original_argv=original)
-        assert "--tui" in argv
-        assert "--dev" in argv
+        assert "--tui" not in argv
+        assert "--yolo" in argv
         assert "--profile" in argv
         assert "work" in argv
         assert "--resume" in argv
@@ -253,12 +253,12 @@ class TestResolveHermesBinWindowsPyGuard:
         # exercise the None-fallback path (that's a separate test).
         monkeypatch.setattr(
             relaunch_mod.shutil, "which",
-            lambda name: r"C:\venv\Scripts\hermes.exe" if name == "hermes" else None,
+            lambda name: r"C:\venv\Scripts\lenlion.exe" if name == "lenlion" else None,
         )
 
         bin_path = relaunch_mod.resolve_hermes_bin()
         # Must NOT be the .py — must be the hermes.exe PATH entry.
-        assert bin_path == r"C:\venv\Scripts\hermes.exe"
+        assert bin_path == r"C:\venv\Scripts\lenlion.exe"
 
     def test_posix_still_accepts_py_argv0(self, monkeypatch, tmp_path):
         """POSIX behaviour unchanged: argv[0] pointing at an executable

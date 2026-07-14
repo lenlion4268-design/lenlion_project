@@ -165,7 +165,7 @@ def isolated_home(tmp_path, monkeypatch):
     """Redirect HERMES_HOME so save_env_value writes into a temp .env."""
     home = tmp_path / "home"
     lenlion = home / ".hermes"
-    hermes.mkdir(parents=True)
+    lenlion.mkdir(parents=True)
     monkeypatch.setattr(Path, "home", lambda: home)
     monkeypatch.setenv("HERMES_HOME", str(lenlion))
     for key in list(os.environ):

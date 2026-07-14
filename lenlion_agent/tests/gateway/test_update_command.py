@@ -120,7 +120,7 @@ class TestHandleUpdateCommand:
         fake_file = str(fake_root / "gateway" / "run.py")
 
         with patch("gateway.run._hermes_home", tmp_path), \
-             patch("gateway.run.__file__", fake_file), \
+             patch("gateway.slash_commands.__file__", fake_file), \
              patch("shutil.which", return_value=None), \
              patch("importlib.util.find_spec", return_value=None):
             result = await runner._handle_update_command(event)
@@ -147,7 +147,7 @@ class TestHandleUpdateCommand:
         fake_spec = MagicMock()
 
         with patch("gateway.run._hermes_home", hermes_home), \
-             patch("gateway.run.__file__", fake_file), \
+             patch("gateway.slash_commands.__file__", fake_file), \
              patch("shutil.which", return_value=None), \
              patch("importlib.util.find_spec", return_value=fake_spec), \
              patch("subprocess.Popen", mock_popen):
@@ -210,7 +210,7 @@ class TestHandleUpdateCommand:
         hermes_home.mkdir()
 
         with patch("gateway.run._hermes_home", hermes_home), \
-             patch("gateway.run.__file__", fake_file), \
+             patch("gateway.slash_commands.__file__", fake_file), \
              patch("shutil.which", side_effect=lambda x: "/usr/bin/hermes" if x == "hermes" else "/usr/bin/setsid"), \
              patch("subprocess.Popen"):
             result = await runner._handle_update_command(event)
@@ -246,7 +246,7 @@ class TestHandleUpdateCommand:
         hermes_home.mkdir()
 
         with patch("gateway.run._hermes_home", hermes_home), \
-             patch("gateway.run.__file__", fake_file), \
+             patch("gateway.slash_commands.__file__", fake_file), \
              patch("shutil.which", side_effect=lambda x: "/usr/bin/hermes" if x == "hermes" else "/usr/bin/setsid"), \
              patch("subprocess.Popen"):
             await runner._handle_update_command(event)
@@ -272,7 +272,7 @@ class TestHandleUpdateCommand:
 
         mock_popen = MagicMock()
         with patch("gateway.run._hermes_home", hermes_home), \
-             patch("gateway.run.__file__", fake_file), \
+             patch("gateway.slash_commands.__file__", fake_file), \
              patch("shutil.which", side_effect=lambda x: f"/usr/bin/{x}"), \
              patch("subprocess.Popen", mock_popen):
             result = await runner._handle_update_command(event)
@@ -309,7 +309,7 @@ class TestHandleUpdateCommand:
             return None
 
         with patch("gateway.run._hermes_home", hermes_home), \
-             patch("gateway.run.__file__", fake_file), \
+             patch("gateway.slash_commands.__file__", fake_file), \
              patch("shutil.which", side_effect=which_no_setsid), \
              patch("subprocess.Popen", mock_popen):
             result = await runner._handle_update_command(event)
@@ -340,7 +340,7 @@ class TestHandleUpdateCommand:
         hermes_home.mkdir()
 
         with patch("gateway.run._hermes_home", hermes_home), \
-             patch("gateway.run.__file__", fake_file), \
+             patch("gateway.slash_commands.__file__", fake_file), \
              patch("shutil.which", side_effect=lambda x: f"/usr/bin/{x}"), \
              patch("subprocess.Popen", side_effect=OSError("spawn failed")):
             result = await runner._handle_update_command(event)
@@ -366,7 +366,7 @@ class TestHandleUpdateCommand:
         hermes_home.mkdir()
 
         with patch("gateway.run._hermes_home", hermes_home), \
-             patch("gateway.run.__file__", fake_file), \
+             patch("gateway.slash_commands.__file__", fake_file), \
              patch("shutil.which", side_effect=lambda x: f"/usr/bin/{x}"), \
              patch("subprocess.Popen"):
             result = await runner._handle_update_command(event)

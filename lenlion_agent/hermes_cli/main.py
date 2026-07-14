@@ -3814,6 +3814,28 @@ def _run_npm_install_deterministic(
     )
 
 
+def _workspace_root(package_dir: Path) -> Path:
+    """Return the npm install root for a package directory.
+
+    A package with its own lockfile installs independently. Otherwise, use its
+    parent when the parent owns the workspace lockfile.
+    """
+    if (package_dir / "package-lock.json").exists():
+        return package_dir
+    parent = package_dir.parent
+    if (parent / "package-lock.json").exists():
+        return parent
+    return package_dir
+
+
+def _termux_workspace_install_context(web_dir: Path) -> tuple[Path, tuple[str, ...]]:
+    """Return npm cwd/args for the web build under Termux."""
+    npm_cwd = _workspace_root(web_dir)
+    if npm_cwd == web_dir:
+        return npm_cwd, ()
+    return npm_cwd, ("--workspace", "web", "--include-workspace-root=false")
+
+
 def _build_web_ui(web_dir: Path, *, fatal: bool = False) -> bool:
     """Build the web UI frontend if npm is available.
 

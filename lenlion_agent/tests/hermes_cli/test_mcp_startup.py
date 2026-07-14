@@ -88,7 +88,7 @@ def test_prepare_agent_startup_backgrounds_blocking_mcp_for_chat(monkeypatch):
         stop.set()
 
 
-def test_prepare_agent_startup_skips_mcp_bootstrap_for_tui_chat(monkeypatch):
+def test_prepare_agent_startup_bootstraps_mcp_when_legacy_tui_flag_is_present(monkeypatch):
     calls = {"mcp": 0}
 
     monkeypatch.setitem(
@@ -116,8 +116,8 @@ def test_prepare_agent_startup_skips_mcp_bootstrap_for_tui_chat(monkeypatch):
 
     main_mod._prepare_agent_startup(_agent_args(tui=True))
 
-    assert calls["mcp"] == 0
-    assert mcp_startup._mcp_discovery_thread is None
+    assert calls["mcp"] == 1
+    assert mcp_startup._mcp_discovery_thread is not None
 
 
 def test_cli_get_tool_definitions_briefly_waits_for_fast_mcp_thread(monkeypatch):

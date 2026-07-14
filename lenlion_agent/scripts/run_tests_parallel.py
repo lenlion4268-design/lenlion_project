@@ -102,6 +102,9 @@ _SKIP_FILE_SUBSTRINGS = (
     "test_openclaw_migration",             # optional-skills migration removed
     "test_darwinian_evolver_skill",        # optional-skills package removed
     "test_desktop_mac_entitlements",       # Electron desktop app removed
+    "test_tui_mouse_residue_suppression",  # Ink TUI runtime removed
+    "test_cmd_update",                     # standalone-repo git updater tests
+    "test_dashboard_profiles_nav_label",   # upstream dashboard i18n layout removed
 )
 
 # Per-file wall-clock cap. Override

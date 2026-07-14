@@ -95,7 +95,7 @@ class TestGenerateBash:
     def test_contains_completion_function_and_register(self):
         out = generate_bash(_make_parser())
         assert "_hermes_completion()" in out
-        assert "complete -F _hermes_completion hermes" in out
+        assert "complete -F _hermes_completion lenlion" in out
 
     def test_top_level_commands_present(self):
         out = generate_bash(_make_parser())
@@ -127,7 +127,7 @@ class TestGenerateBash:
 class TestGenerateZsh:
     def test_contains_compdef_header(self):
         out = generate_zsh(_make_parser())
-        assert "#compdef hermes" in out
+        assert "#compdef lenlion" in out
 
     def test_top_level_commands_present(self):
         out = generate_zsh(_make_parser())
@@ -142,7 +142,7 @@ class TestGenerateZsh:
 
     def test_registers_compdef_instead_of_invoking_completion_function(self):
         out = generate_zsh(_make_parser())
-        assert 'compdef _hermes hermes' in out
+        assert 'compdef _hermes lenlion' in out
         assert '_hermes "$@"' not in out
 
     def test_preserves_valid_zsh_arguments_alias_syntax(self):

@@ -1773,6 +1773,7 @@ _LEGACY_UNIT_EXECSTART_MARKERS: tuple[str, ...] = (
     "hermes_cli/main.py gateway",
     "gateway/run.py",
     " lenlion gateway ",
+    "/lenlion gateway ",
     "/hermes gateway ",
 )
 
